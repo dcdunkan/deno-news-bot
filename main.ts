@@ -6,7 +6,7 @@ import { serve } from "https://deno.land/std@0.153.0/http/mod.ts";
 serve(async (req) => {
   const path = new URL(req.url).pathname.substring(1);
 
-  if (path === "incident") {
+  if (req.method === "POST" && path === "incident") {
     return await status(req);
   } else if (path === "blog") {
     return await blog();
