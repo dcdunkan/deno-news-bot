@@ -1,9 +1,3 @@
 Bot to post about Deno related updates such as release info, system
 downtimes, blog posts and other news from various sources in a Telegram
 Channel. Currently posting at https://t.me/deno_news
-
-blog.ts and releases.ts endpoint must be called setup third party cron-jobs
-that calls to the endpoint.
-
-status.ts should be hosted somewhere and that deployment URL must be
-subscribed in the status page of instatus.com. For example, https://denostatus.com.
