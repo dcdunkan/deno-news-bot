@@ -1,17 +1,20 @@
+import { serve } from "https://deno.land/std@0.153.0/http/mod.ts";
 import { blog } from "./blog.ts";
+import { news } from "./news.ts";
 import { release } from "./releases.ts";
 import { status } from "./status.ts";
-import { serve } from "https://deno.land/std@0.153.0/http/mod.ts";
 
 serve(async (req) => {
   const path = new URL(req.url).pathname.substring(1);
 
-  if (req.method === "POST" && path === "incident") {
-    return await status(req);
+  if (req.method === "POST" && path === "status") {
+    await status(req);
   } else if (path === "blog") {
-    return await blog();
+    await blog();
   } else if (path === "release") {
-    return await release();
+    await release();
+  } else if (path === "news") {
+    await news();
   }
 
   return new Response();

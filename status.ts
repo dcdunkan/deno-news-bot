@@ -1,7 +1,11 @@
-import { esc, post } from "./bot.ts";
+// Register a webhook at https://denostatus.com, pointing to /status
+// endpoint of the application. Bot posts when there are new incidents
+// and change in the status of the incident. (Does not posts when
+// status of individual systems changes).
+
+import { esc, post } from "./helpers.ts";
 
 type Status = "Investigating" | "Identified" | "Monitoring" | "Resolved";
-
 interface Incident {
   name: string;
   status: Status;
@@ -21,15 +25,20 @@ const emoji: Record<Status, string> = {
 
 export async function status(req: Request) {
   const data = await req.json() as { incident: Incident };
-  if ("incident" in data) {
-    const { affected_components, name, status, url } = data.incident;
+  if (data.incident === undefined) return;
+  const {
+    affected_components,
+    name,
+    status,
+    url,
+  } = data.incident;
 
-    const affectedList = affected_components
-      .map(({ name, status }) => esc(`• ${name}: ${status}`))
-      .join("\n").substring(0, 2048);
+  const affectedList = affected_components
+    .map(({ name, status }) => esc(`• ${name}: ${status}`))
+    .join("\n").substring(0, 2048);
 
-    await post(
-      `
+  await post(
+    `
 ${emoji[status]} Incident Report
 <b>${esc(name)}</b>
 Current Status: ${status}
@@ -38,9 +47,6 @@ Current Status: ${status}
 ${affectedList}
 
 ${url}`,
-      { disable_web_page_preview: true, parse_mode: "HTML" },
-    );
-  }
-
-  return new Response();
+    { disable_web_page_preview: true, parse_mode: "HTML" },
+  );
 }
