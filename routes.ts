@@ -76,7 +76,7 @@ function body(str: string) {
 }
 
 const RELEASES_API_URL =
-  "https://api.github.com/repos/dcdunkan/_test/releases/latest";
+  "https://api.github.com/repos/denoland/deno/releases/latest";
 
 export async function release() {
   const response = await fetch(RELEASES_API_URL);
