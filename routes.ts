@@ -1,6 +1,11 @@
+// === ROUTES
+// status/ (webhook)
+// blog-news/ (cron)
+// release/ (cron)
+
 // Checks for blog posts that was published within the last 10 minutes
 // in https://deno.com/blog, and posts the URL with Instant View.
-// CRON JOB required. /blog endpoint must be called every 10 minutes
+// CRON JOB required. /blog-news endpoint must be called every 10 minutes
 // for the best results.
 
 import { esc, isNewPost, iv, pin, post } from "./helpers.ts";
@@ -27,7 +32,7 @@ export async function blog() {
 
 // Checks for news that was published within the last 10 minutes
 // in https://deno.news, and posts the URL with Instant View.
-// CRON JOB required. /news endpoint must be called every 10 minutes
+// CRON JOB required. /blog-news endpoint must be called every 10 minutes
 // for the best results.
 
 const NEWS_RSS_FEED = "https://buttondown.email/denonews/rss";
