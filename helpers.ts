@@ -21,7 +21,7 @@ if (!BOT_TOKEN || isNaN(CHANNEL)) {
 
 export function isNewPost(published: Date, minutes: number) {
   const diff = difference(published, new Date());
-  return diff.minutes! < minutes ? true : false;
+  return diff.milliseconds! < (minutes * 60 * 1000) ? true : false;
 }
 
 const ZWSP = "\u200b"; // zero-width space character
