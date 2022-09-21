@@ -1,0 +1,36 @@
+# github.com/dcdunkan/deno-bot
+
+~version: "2.1"
+~allowed_origin: "https://github.com"
+
+@remove: //img[has-class("avatar")]
+@remove: //img[has-class("avatar-user")]
+@remove: //button
+
+@remove: //turbo-frame/div/div/div/div/div[1]/div[3]
+@remove: //nav[@aria-label="Breadcrumb"]
+
+body: //main
+title: //h1
+subtitle: //h3
+kicker: //div[@id="repository-container-header"]
+cover: //head/meta[@name="og:image"]/@content
+
+@split_parent: //img
+@split_parent: //p/img
+@replace_tag(<b>): //strong
+
+@remove: //footer
+@remove: //ul[has-class("list-style-none d-flex flex-wrap mb-n2")]
+@remove: //ul[has-class("pagehead-actions")]
+@remove: //span[has-class("Label Label--secondary")]
+@remove: //span[has-class("Label Label--success")]
+@remove: //details[has-class("details-overlay")]
+@remove: //div[has-class("overflow-hidden")]
+@remove: //div[has-class("flash flash-error")]
+@remove: //a[has-class("d-none js-permalink-shortcut")]
+@remove: //nav[has-class("js-repo-nav")]
+@replace_tag(<p>): //h2[has-class("Box-title")]
+@split_parent: //details[has-class("BorderGrid-row")]/details
+@remove: //*[has-class("sr-only")]
+@remove: //div[has-class("Box-footer")]

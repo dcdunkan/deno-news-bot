@@ -1,0 +1,42 @@
+# github.com/dcdunkan/deno-bot
+
+~version: "2.1"
+~allowed_origin: "https://deno.news"
+
+?path: /archive/.* 
+
+# svg2png is awesome!
+@replace("^/", "https://svg2png.deno.dev/https://deno.news/"): //img[ends-with(@src, ".svg")]/@src
+
+site_name: "Deno News"
+channel: "@deno_news"
+title: //h1
+image_url: //head/meta[@property="og:image"]/@content
+kicker: //head/meta[@name="description"]/@content
+published_date: //time
+body: //article
+
+# FIXES
+@split_parent: //a/img
+@split_parent: //p/img
+@split_parent: //p/video
+@remove: //time
+@remove: //hr # I hate its preview
+
+# FIXES
+# Move <img> from <p> to outside ...
+@split_parent: //a/img
+@split_parent: //p/img
+@split_parent: //p/video
+# Remove the weird ruler (I hate its preview)
+@remove: //hr
+# subscription section
+@remove: //div[last()]
+
+# ANCHOR FIX (Thanks to @KnorpelSenf)
+# Rewrite links to stay within IV ...
+@replace("https://deno.news/archive/", "https://t.me/iv?rhash=b5ba1c523db473&url=https%3A%2F%2Fdeno.news%2Farchive%2F"): //a/@href
+# Anchor stuff
+@set_attr(name, @href): //a[has-class("anchor")]
+# ... and stripping leading hashes for anchor names ...
+@replace("^#", ""): $$/@name
