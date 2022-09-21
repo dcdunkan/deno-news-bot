@@ -68,10 +68,6 @@ interface Release {
   body?: string;
 }
 
-function body(str: string) {
-  return str.split("\n").slice(2).join("\n").substring(0, 512);
-}
-
 const RELEASES_API_URL =
   "https://api.github.com/repos/denoland/deno/releases/latest";
 
@@ -82,9 +78,8 @@ export async function release(date: Date) {
   if (!release || !release.published_at) return;
   if (!isNewPost("*/2 * * * *", date, new Date(release.published_at))) return;
   const msg = await post(
-    `<b>Deno ${esc(release.name)}</b>${iv(release.html_url)}\
-${release.body ? `\n\n${esc(body(release.body))}\n` : ""}
-<a href="${release.html_url}">...view full release details</a>`,
+    `<b>${esc(release.name)}</b>${iv(release.html_url)}\n
+${esc(release.html_url)}`,
     { parse_mode: "HTML" },
   );
   await pin(msg.message_id);
