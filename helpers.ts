@@ -1,6 +1,6 @@
-import "https://deno.land/std@0.153.0/dotenv/load.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.10.1/mod.ts";
-import { difference } from "https://deno.land/std@0.153.0/datetime/mod.ts";
+import "https://deno.land/std@0.156.0/dotenv/load.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.11.1/mod.ts";
+import { parseExpression } from "https://esm.sh/cron-parser@4.6.0";
 
 // Instant View rule hashes for linking websites.
 // See rules/ directory for the sources.
@@ -19,9 +19,15 @@ if (!BOT_TOKEN || isNaN(CHANNEL)) {
   throw new Error("Missing/Invalid Environment Variables");
 }
 
-export function isNewPost(published: Date, minutes: number) {
-  const diff = difference(published, new Date());
-  return diff.milliseconds! < (minutes * 60 * 1000) ? true : false;
+export function isNewPost(
+  cronExp: string,
+  currentDate: Date,
+  published: Date,
+) {
+  const parsed = parseExpression(cronExp, { currentDate });
+  const lastCheckedOn = parsed.prev().toDate().valueOf();
+  const publishedOn = published.valueOf();
+  return lastCheckedOn < publishedOn ? true : false;
 }
 
 const ZWSP = "\u200b"; // zero-width space character
