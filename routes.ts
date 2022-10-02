@@ -69,7 +69,7 @@ interface Release {
 }
 
 const RELEASES_API_URL =
-  "https://api.github.com/repos/denoland/deno/releases/latest";
+  "https://api.github.com/repos/dcdunkan/_test/releases/latest";
 
 export async function release(date: Date) {
   const response = await fetch(RELEASES_API_URL);
