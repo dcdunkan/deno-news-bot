@@ -27,6 +27,7 @@ export function isNewPost(
   const parsed = parseExpression(cronExp, { currentDate });
   const lastCheckedOn = parsed.prev().toDate().valueOf();
   const publishedOn = published.valueOf();
+  console.log({ lastCheckedOn, publishedOn });
   return lastCheckedOn < publishedOn ? true : false;
 }
 

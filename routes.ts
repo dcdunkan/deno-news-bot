@@ -75,7 +75,7 @@ export async function release(date: Date) {
   const response = await fetch(RELEASES_API_URL);
   if (!response.ok) return;
   const release = await response.json() as Release;
-  if (!release || !release.published_at) return;
+  console.log(release.published_at);
   if (!isNewPost("*/2 * * * *", date, new Date(release.published_at))) return;
   const msg = await post(
     `<b>${esc(release.name)}</b>${iv(release.html_url)}\n
