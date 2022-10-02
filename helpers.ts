@@ -1,4 +1,4 @@
-import "https://deno.land/std@0.156.0/dotenv/load.ts";
+// import "https://deno.land/std@0.156.0/dotenv/load.ts";
 import { Bot } from "https://deno.land/x/grammy@v1.11.1/mod.ts";
 import { parseExpression } from "https://esm.sh/cron-parser@4.6.0";
 
@@ -10,7 +10,7 @@ const RHASHES: Record<string, string> = {
   // https://deno.com/blog
   "deno.com": "28aee3eda1037a",
   // https://github.com/denoland/deno/releases/tag/x
-  "github.com": "877b90c98613a6",
+  "github.com": "877b90c98613a6", // not used (cuz its boring to maintain)
 };
 
 const BOT_TOKEN = Deno.env.get("BOT_TOKEN");
@@ -27,8 +27,7 @@ export function isNewPost(
   const parsed = parseExpression(cronExp, { currentDate });
   const lastCheckedOn = parsed.prev().toDate().valueOf() - 1000 * 60 * 2; // 2m heh
   const publishedOn = published.valueOf();
-  console.log({ lastCheckedOn, publishedOn });
-  return lastCheckedOn < publishedOn ? true : false;
+  return publishedOn > lastCheckedOn ? true : false;
 }
 
 const ZWSP = "\u200b"; // zero-width space character

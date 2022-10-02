@@ -1,3 +1,6 @@
+# could be incorrect, since im no longer maintaining it,
+# because it is boring
+
 # github.com/dcdunkan/deno-bot
 
 ~version: "2.1"

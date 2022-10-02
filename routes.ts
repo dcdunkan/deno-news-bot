@@ -69,17 +69,15 @@ interface Release {
 }
 
 const RELEASES_API_URL =
-  "https://api.github.com/repos/dcdunkan/_test/releases/latest";
+  "https://api.github.com/repos/denoland/deno/releases/latest";
 
 export async function release(date: Date) {
   const response = await fetch(RELEASES_API_URL);
   if (!response.ok) return;
   const release = await response.json() as Release;
-  console.log(release.published_at);
   if (!isNewPost("*/2 * * * *", date, new Date(release.published_at))) return;
   const msg = await post(
-    `<b>${esc(release.name)}</b>${iv(release.html_url)}\n
-${esc(release.html_url)}`,
+    `<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`,
     { parse_mode: "HTML" },
   );
   await pin(msg.message_id);
