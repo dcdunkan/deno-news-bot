@@ -21,11 +21,12 @@ if (!BOT_TOKEN || isNaN(CHANNEL)) {
 
 export function isNewPost(
   cronExp: string,
+  min: number,
   currentDate: Date,
   published: Date,
 ) {
   const parsed = parseExpression(cronExp, { currentDate });
-  const lastCheckedOn = parsed.prev().toDate().valueOf() - 1000 * 60 * 2; // 2m heh
+  const lastCheckedOn = parsed.prev().toDate().valueOf() - 1000 * 60 * min;
   const publishedOn = published.valueOf();
   return publishedOn > lastCheckedOn ? true : false;
 }
