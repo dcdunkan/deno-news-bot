@@ -19,7 +19,7 @@ export async function blog(date: Date) {
   const feed = await parseFeed(content);
   const entry = feed.entries[0];
   if (!entry || !entry.published) return;
-  if (!isNewPost("*/10 * * * *", date, entry.published)) return;
+  if (!isNewPost("*/10 * * * *", 10, date, entry.published)) return;
   const title = entry.title?.value!;
   const url = entry.links[0].href ?? entry.id;
   await post(
@@ -42,7 +42,7 @@ export async function news(date: Date) {
   const feed = await parseFeed(content);
   const entry = feed.entries[0];
   if (!entry || !entry.published) return;
-  if (!isNewPost("*/10 * * * *", date, entry.published)) return;
+  if (!isNewPost("*/10 * * * *", 10, date, entry.published)) return;
   const title = entry.title?.value!;
   const url = (entry.links[0].href ?? entry.id).replace(
     "https://buttondown.email/denonews/",
@@ -75,7 +75,7 @@ export async function release(date: Date) {
   const response = await fetch(RELEASES_API_URL);
   if (!response.ok) return;
   const release = await response.json() as Release;
-  if (!isNewPost("*/2 * * * *", date, new Date(release.published_at))) return;
+  if (!isNewPost("*/2 * * * *", 2, date, new Date(release.published_at))) return;
   const msg = await post(
     `<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`,
     { parse_mode: "HTML" },
