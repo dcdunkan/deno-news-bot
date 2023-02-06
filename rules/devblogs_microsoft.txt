@@ -1,0 +1,24 @@
+# github.com/dcdunkan/deno-bot
+
+~version: "2.1"
+~allowed_origin: "https://devblogs.microsoft.com"
+
+?path: /typescript/.*
+
+# svg2png is awesome!
+@replace("^/", "https://svg2png.deno.dev/https://deno.com/"): //img[ends-with(@src, ".svg")]/@src
+
+site_name: "TypeScript DevBlog"
+channel: "@deno_news"
+
+title: //h1
+image_url: //head/meta[@property="og:image"]/@content
+kicker: //head/meta[@name="description"]/@content
+author: //h5[@class="post-authorname"]/a
+published_date: //time
+body: //article
+
+@remove: //img
+@remove: //div[has-class("author-header")]
+@remove: //div[has-class("entry-meta")]
+@remove: //div[has-class("postdetail-author-info")]
