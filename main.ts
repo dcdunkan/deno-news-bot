@@ -116,7 +116,7 @@ serve(async (req: Request) => {
 });
 
 function selectRoute() {
-  
+  return ROUTES[new Date().getMinutes() % ROUTES.length];
 }
 
 function post(text: string) {
