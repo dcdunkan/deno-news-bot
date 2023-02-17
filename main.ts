@@ -1,5 +1,5 @@
-import { load } from "https://deno.land/std@0.176.0/dotenv/mod.ts";
-import { serve } from "https://deno.land/std@0.176.0/http/mod.ts";
+import { load } from "https://deno.land/std@0.177.0/dotenv/mod.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/mod.ts";
 import { parseFeed } from "https://deno.land/x/rss@0.5.7/mod.ts";
 import { KV } from "https://ghc.deno.dev/dcdunkan/1kv@ff40ec2/mod.ts";
 import { Bot } from "https://deno.land/x/grammy@v1.14.1/mod.ts";
@@ -22,7 +22,6 @@ const RHASHES: Record<string, string> = {
   "deno.news": "b5ba1c523db473", // https://deno.news/archive
   "deno.com": "28aee3eda1037a", // https://deno.com/blog
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/
-  // "github.com": "877b90c98613a6", // not used (cuz its hard to maintain)
 };
 const URLS = {
   blog: "https://deno.com/feed",
@@ -49,7 +48,7 @@ async function getLatestEntries(url: string, key: string) {
   return entries;
 }
 
-const routes: Record<string, () => Promise<string[]>> = {
+const handlers: Record<string, () => Promise<string[]>> = {
   "blog": async () => {
     const entries = await getLatestEntries(URLS.blog, "deno_news_blog");
     return entries.map((entry) => {
@@ -71,7 +70,7 @@ const routes: Record<string, () => Promise<string[]>> = {
     return entries.map((entry) => {
       const title = entry.title?.value!;
       const url = entry.links[0].href ?? entry.id;
-      return `<b>${esc(title)}</b>${esc(url)}`;
+      return `<b>${esc(title)}</b>\n\n${esc(url)}`;
     });
   },
   "release": async () => {
@@ -93,25 +92,32 @@ const routes: Record<string, () => Promise<string[]>> = {
   },
 };
 
+const ROUTES = Object.keys(handlers);
+
 serve(async (req: Request) => {
-  const [, path] = new URL(req.url).pathname.split("/");
-  if (routes[path] === undefined) return new Response();
+  const route = selectRoute();
+  const routeHandler = handlers[route];
+  if (routeHandler === undefined) return new Response("invalid", { status: 400 });
   const secretHeader = req.headers.get("secret");
   if (env.SECRET !== undefined && secretHeader !== env.SECRET) {
     return new Response("unauthorized", { status: 401 });
   }
-  const messages = await routes[path]();
+  const messages = await routeHandler();
   for (const message of messages) {
     const sent = await post(message);
-    if (path === "release") await pin(sent.message_id);
+    if (route === "release") await pin(sent.message_id);
   }
-  return Response.json(messages);
+  return Response.redirect("https://github.com/dcdunkan/deno-bot");
 }, {
   onError: (err) => {
     console.error(err);
     return new Response("Internal Server Error", { status: 500 });
   },
 });
+
+function selectRoute() {
+  
+}
 
 function post(text: string) {
   return bot.api.sendMessage(CHANNEL, text, { parse_mode: "HTML" });
