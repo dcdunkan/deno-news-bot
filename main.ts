@@ -124,7 +124,7 @@ serve(async (req: Request) => {
     const sent = await post(message);
     if (route === "release") await pin(sent.message_id);
   }
-  return Response.redirect("https://github.com/dcdunkan/deno-bot");
+  return new Response();
 }, {
   onError: (err) => {
     console.error(err);
