@@ -1,7 +1,6 @@
 import { load } from "https://deno.land/std@0.177.0/dotenv/mod.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/mod.ts";
 import { parseFeed } from "https://deno.land/x/rss@0.5.7/mod.ts";
-import { KV } from "https://ghc.deno.dev/dcdunkan/1kv@ff40ec2/mod.ts";
 import { Bot } from "https://deno.land/x/grammy@v1.14.1/mod.ts";
 
 await load({ export: true });
@@ -11,6 +10,24 @@ const env = Deno.env.toObject() as {
   BOT_TOKEN: string;
   SECRET: string;
 };
+
+class KV {
+  constructor(private url: string, private secret: string) {}
+  async request(method: string, key: string, body?: any) {
+    const res = await fetch(`${this.url}/${key}`, {
+      method,
+      headers: new Headers({ secret: this.secret }),
+      body: JSON.stringify(body),
+    });
+    return await res.json();
+  }
+  get(key: string) {
+    return this.request("GET", key);
+  }
+  put(key: string, value: string | number) {
+    return this.request("POST", key, { value: `${value}` });
+  }
+}
 
 const kv = new KV(env.KV_URL, env.KV_SECRET);
 const bot = new Bot(env.BOT_TOKEN);
@@ -43,7 +60,7 @@ async function getLatestEntries(url: string, key: string) {
     entries.unshift(entry); // FIFO
   }
   if (entries.length !== 0) {
-    await kv.edit(key, { value: feed.entries[0].id });
+    await kv.put(key, feed.entries[0].id);
   }
   return entries;
 }
@@ -79,7 +96,7 @@ const handlers: Record<string, () => Promise<string[]>> = {
     const res = await kv.get("deno_news_release");
     if (!res.ok) throw res.error;
     if (res.value === release.id) return [];
-    await kv.edit("deno_news_release", { value: release.id });
+    await kv.put("deno_news_release", release.id);
     return [`<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
   },
   "typescript": async () => {
