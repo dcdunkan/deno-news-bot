@@ -5,7 +5,6 @@
 
 ?path: /typescript/.*
 
-# svg2png is awesome!
 @replace("^/", "https://svg2png.deno.dev/https://deno.com/"): //img[ends-with(@src, ".svg")]/@src
 
 site_name: "TypeScript DevBlog"
