@@ -13,13 +13,23 @@ const env = Deno.env.toObject() as {
 
 class KV {
   constructor(private url: string, private secret: string) {}
-  async request(method: string, key: string, body?: any) {
+  async request(method: string, key: string, body?: unknown) {
     const res = await fetch(`${this.url}/${key}`, {
       method,
-      headers: new Headers({ secret: this.secret }),
+      headers: { secret: this.secret },
       body: JSON.stringify(body),
     });
-    return await res.json();
+    if (!res.ok) {
+      console.log(await res.text());
+      throw new Error("Request failed");
+    }
+    let data: any;
+    try {
+      data = await res.json();
+    } catch (err) {
+      throw new Error(err);
+    }
+    return data;
   }
   get(key: string) {
     return this.request("GET", key);
@@ -114,7 +124,9 @@ const ROUTES = Object.keys(handlers);
 serve(async (req: Request) => {
   const route = selectRoute();
   const routeHandler = handlers[route];
-  if (routeHandler === undefined) return new Response("invalid", { status: 400 });
+  if (routeHandler === undefined) {
+    return new Response("invalid", { status: 400 });
+  }
   const secretHeader = req.headers.get("secret");
   if (env.SECRET !== undefined && secretHeader !== env.SECRET) {
     return new Response("unauthorized", { status: 401 });
