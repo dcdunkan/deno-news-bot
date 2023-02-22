@@ -14,6 +14,7 @@ const env = Deno.env.toObject() as {
 class KV {
   constructor(private url: string, private secret: string) {}
   async request(method: string, key: string, body?: unknown) {
+    console.log(`${this.url}/${key}`);
     const res = await fetch(`${this.url}/${key}`, {
       method,
       headers: { secret: this.secret },
