@@ -21,6 +21,7 @@ const env = Deno.env.toObject() as {
   BOT_TOKEN: string;
   SECRET: string;
 };
+
 const bot = new Bot(env.BOT_TOKEN);
 const CHANNEL = Number(Deno.env.get("CHANNEL"));
 if (isNaN(CHANNEL)) throw new Error("CHANNEL should be a channel ID");
@@ -52,7 +53,8 @@ const handlers: Record<string, () => Promise<string[]>> = {
     const entries = await getLatestEntries(URLS.news);
     return entries.map((entry) => {
       const title = entry.title?.value!;
-      const url = entry.links[0].href ?? entry.id;
+      const url = (entry.links[0].href ?? entry.id)
+        .replace("buttondown.email/denonews", "deno.news");
       return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
     });
   },
@@ -97,7 +99,7 @@ async function getLatestEntries(url: string) {
   const entries: typeof feed.entries = [];
   for (const entry of feed.entries) {
     if (!entry.published) continue;
-    if (entry.published < lastChecked) break;
+    if (entry.published <= lastChecked) break;
     entries.unshift(entry); // FIFO
   }
   return entries;
