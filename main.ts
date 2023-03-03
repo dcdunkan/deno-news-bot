@@ -71,7 +71,7 @@ const handlers: Record<string, () => Promise<string[]>> = {
     const response = await fetch(URLS.release);
     const release = await response.json();
     const published = new Date(release.published_at);
-    if (published < lastChecked) return [];
+    if (published <= lastChecked) return [];
     return [`<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
   },
   "typescript": async () => {
@@ -87,8 +87,11 @@ const handlers: Record<string, () => Promise<string[]>> = {
 const ROUTES = Object.keys(handlers);
 
 function getLastChecked() {
+  const now = new Date();
+  now.setSeconds(0);
+  now.setMilliseconds(0);
   // This is why cron job with 1 minute interval is required.
-  return new Date(Date.now() - (ROUTES.length * 60 * 1000));
+  return new Date(now.valueOf() - (ROUTES.length * 60 * 1000) - 2);
 }
 
 async function getLatestEntries(url: string) {
@@ -119,7 +122,7 @@ async function handle(req: Request) {
       : await post(message);
     if (route === "release") await pin(sent.message_id);
   }
-  return new Response();
+  return Response.json({ ok: true, checked: route, sent: messages.length });
 }
 
 function selectRoute() {
