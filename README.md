@@ -6,16 +6,21 @@ channel. Currently posting at <https://t.me/deno_news>, join for updates.
 
 #### Sources (5)
 
-- Releases (<https://github.com/denoland/deno/releases/latest>)
-- Deno Blog (<https://deno.com/blog>)
-- Deno News (<https://deno.news/archive>)
-- Deno Status (<https://denostatus.com>)
-- TypeScript Blog (We &lt;3 TS) (<https://devblogs.microsoft.com/typescript>)
+The bot currently fetches the posts from the following sources:
+
+- <https://github.com/denoland/deno/releases/latest>
+- <https://deno.com/blog>\*
+- <https://deno.news/archive>\*
+- <https://denostatus.com>
+- <https://devblogs.microsoft.com/typescript>\*
+
+> \*Have a custom Telegram Instant-View. See the `iv-rules` directory for the
+> Instant-View rule source.
 
 #### Setup
 
-You don't need to, if you're only looking for the realtime-updates. Just join:
-<https://t.me/deno_news>.
+You don't need to set anything up, if you're only looking for the
+realtime-updates. Just join: <https://t.me/deno_news>.
 
 Setup a cron-job for calling the main end point every 1 minute. You need to set
 the following environmental variables to make this work properly:
@@ -23,6 +28,11 @@ the following environmental variables to make this work properly:
 - BOT_TOKEN: Bot token of the Telegram bot.
 - CHANNEL: Chat ID where the bot is allowed to send and pin messages (only
   release news are pinned).
+
+> If you want to, you can also set a SECRET, which should be also added in the
+> `Secret` header when requesting the server endpoint. This helps to avoid
+> _anyone_ on the internet from requesting the server and triggering the feed
+> fetching.
 
 and this project uses a stupid KV store powered by GitHub Gists
 ([Source Code](https://gist.github.com/dcdunkan/36b6329408f3a2a91881fa29c8e08c30)).
@@ -35,6 +45,3 @@ Anyway,
   parsed from it. It should be in the format:
   <https://gist.githubusercontent.com/owner/gist_id/raw(/revision)/file.json>
   (You can simply copy the URL of the `RAW` button shown with the file)
-
-If you want to, you can also set a SECRET, which should be also added in the
-headers when requesting the server.
