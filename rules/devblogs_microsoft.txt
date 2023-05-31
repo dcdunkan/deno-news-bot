@@ -17,7 +17,7 @@ author: //h5[@class="post-authorname"]/a
 published_date: //time
 body: //article
 
-@remove: //img
+@split_parent: //p/img
 @remove: //div[has-class("author-header")]
 @remove: //div[has-class("entry-meta")]
 @remove: //div[has-class("postdetail-author-info")]
