@@ -1,13 +1,10 @@
-<samp>
-<!-- Yes, I like making it look monospaced. -->
-
-**Deno News**
+## Deno News
 
 Script for posting Deno (https://deno.land) related updates such as release
 info, blog posts, and other news from various official sources in a Telegram
 channel. Currently posting at <https://t.me/deno_news>, join for updates.
 
-**Sources (5)**
+#### Sources (5)
 
 - Releases (<https://github.com/denoland/deno/releases/latest>)
 - Deno Blog (<https://deno.com/blog>)
@@ -15,7 +12,7 @@ channel. Currently posting at <https://t.me/deno_news>, join for updates.
 - Deno Status (<https://denostatus.com>)
 - TypeScript Blog (We &lt;3 TS) (<https://devblogs.microsoft.com/typescript>)
 
-**Setup**
+#### Setup
 
 You don't need to, if you're only looking for the realtime-updates. Just join:
 <https://t.me/deno_news>.
@@ -41,5 +38,3 @@ Anyway,
 
 If you want to, you can also set a SECRET, which should be also added in the
 headers when requesting the server.
-
-</samp>
