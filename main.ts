@@ -10,38 +10,36 @@
  * GitHub Repository: https://github.com/dcdunkan/deno-bot
  */
 
-import { load } from "https://deno.land/std@0.179.0/dotenv/mod.ts";
-import { serve } from "https://deno.land/std@0.179.0/http/mod.ts";
-import { parseFeed } from "https://deno.land/x/rss@0.5.8/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.15.1/mod.ts";
-import { GistKV } from "https://gist.githubusercontent.com/dcdunkan/36b6329408f3a2a91881fa29c8e08c30/raw/c89f5567a3279ff4693aafa3b6c8f7260351cc02/gist.ts";
+import { load } from "https://deno.land/std@0.190.0/dotenv/mod.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/mod.ts";
+import { parseFeed } from "https://deno.land/x/rss@0.6.0/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.16.1/mod.ts";
+
+// To avoid reposting from the beginning in case of removal of the
+// last stored entry, we store last X feed entry IDs and iterate
+// through the all entries until we hit the first "already sent" entry.
+const LAST_X_TO_STORE = 12;
 
 await load({ export: true });
 const env = Deno.env.toObject() as {
   BOT_TOKEN: string;
-  GITHUB_PAT: string;
-  GIST_RAW_URL: string;
   SECRET?: string;
 };
 
-const parts = new URL(env.GIST_RAW_URL).pathname.split("/");
-const kv = new GistKV({
-  token: env.GITHUB_PAT,
-  gistId: parts[2],
-  fileName: parts[parts.length === 6 ? 5 : 4],
-});
+const kv = await Deno.openKv();
 
 const bot = new Bot(env.BOT_TOKEN);
 const CHANNEL = Number(Deno.env.get("CHANNEL"));
 if (isNaN(CHANNEL)) throw new Error("CHANNEL should be a chat (channel) ID");
 const ZWSP = "\u200b"; // zero-width space character for IV.
-// See the rules/ directory for the sources.
+
+// See the rules/ directory for the Instant-View sources.
 const RHASHES: Record<string, string> = {
   "deno.news": "b5ba1c523db473", // https://deno.news/archive/...
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
 };
-const URLS = {
+const FEEDS = {
   blog: "https://deno.com/feed",
   news: "https://buttondown.email/denonews/rss",
   status: "https://denostatus.com/history.rss",
@@ -76,12 +74,17 @@ const handlers: Record<string, () => Promise<string[]>> = {
     });
   },
   "release": async () => {
-    const lastChecked = await kv.get<number>("denonews_release");
-    if (!lastChecked) return [];
-    const response = await fetch(URLS.release);
+    const lastChecked = await kv.get<number>(["denonews", "release"]);
+    console.log(lastChecked);
+    const response = await fetch(FEEDS.release);
+    if (!response.ok) return [];
     const release = await response.json();
-    if (release.id === lastChecked) return [];
-    await kv.set("denonews_release", release.id);
+    if (lastChecked.value == null) {
+      if (release.id != null) await kv.set(["denonews", "release"], release.id);
+      return [];
+    }
+    if (release.id == null || release.id === lastChecked.value) return [];
+    await kv.set(["denonews", "release"], release.id);
     return [`<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
   },
   "typescript": async () => {
@@ -96,20 +99,34 @@ const handlers: Record<string, () => Promise<string[]>> = {
 
 const ROUTES = Object.keys(handlers);
 
-async function getLatestEntries(page: keyof typeof URLS) {
-  const lastChecked = await kv.get<string>(`denonews_${page}`);
-  if (!lastChecked) return [];
-  const response = await fetch(URLS[page]);
+async function getLatestEntries(page: keyof typeof FEEDS) {
+  const lastChecked = await kv.get<string[]>(["denonews", page]);
+  const response = await fetch(FEEDS[page]);
   const textFeed = await response.text();
   const feed = await parseFeed(textFeed);
+  if (feed.entries.length == 0) return [];
+
+  if (lastChecked.value == null) {
+    // freshly added feed -> store the latest entry.
+    if (feed.entries[0].id != null) {
+      await kv.set(["denonews", page], [feed.entries[0].id]);
+    }
+    return [];
+  }
+
   const entries: typeof feed.entries = [];
   for (const entry of feed.entries) {
-    if (!entry.id) continue;
-    if (entry.id === lastChecked) break;
+    if (entry.id == null) continue; // this shouldn't be happening
+    if (lastChecked.value.includes(entry.id)) break;
     entries.unshift(entry); // FIFO
   }
+
   if (entries.length > 0) {
-    await kv.set(`denonews_${page}`, entries.at(-1)!.id);
+    const lastFew = feed.entries
+      .filter((entry) => entry.id != null)
+      .slice(0, LAST_X_TO_STORE)
+      .map((entry) => entry.id);
+    await kv.set(["denonews", page], lastFew);
   }
   return entries;
 }
@@ -118,7 +135,7 @@ async function handle(req: Request) {
   const route = selectRoute();
   const routeHandler = handlers[route];
   const secretHeader = req.headers.get("secret");
-  if (env.SECRET !== undefined && secretHeader !== env.SECRET) {
+  if (env.SECRET != null && secretHeader !== env.SECRET) {
     return new Response("unauthorized", { status: 401 });
   }
   const messages = await routeHandler();

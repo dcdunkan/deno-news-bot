@@ -14,8 +14,8 @@ The bot currently fetches the posts from the following sources:
 - <https://denostatus.com>
 - <https://devblogs.microsoft.com/typescript>\*
 
-> \*Have a custom Telegram Instant-View. See the `iv-rules` directory for the
-> Instant-View rule source.
+> \*: Indicates that the feed has a custom Telegram Instant-View. See the
+> `iv-rules` directory for the Instant-View rule source.
 
 #### Setup
 
@@ -30,18 +30,9 @@ the following environmental variables to make this work properly:
   release news are pinned).
 
 > If you want to, you can also set a SECRET, which should be also added in the
-> `Secret` header when requesting the server endpoint. This helps to avoid
+> "Secret" header when requesting the server endpoint. This helps to avoid
 > _anyone_ on the internet from requesting the server and triggering the feed
 > fetching.
 
-and this project uses a stupid KV store powered by GitHub Gists
-([Source Code](https://gist.github.com/dcdunkan/36b6329408f3a2a91881fa29c8e08c30)).
-Why not an actual, proper KV store or DB? Idk, this is simply a tool and its not
-aimed for general use. So I took the opportunity to mess around with Gists.
-Anyway,
-
-- GITHUB_PAT: GitHub's personal access token with `gists` scope enabled.
-- GIST_RAW_URL: Yes, a raw URL to the Gist file. The required args will be
-  parsed from it. It should be in the format:
-  <https://gist.githubusercontent.com/owner/gist_id/raw(/revision)/file.json>
-  (You can simply copy the URL of the `RAW` button shown with the file)
+This project uses [Deno KV](https://deno.com/manual/runtime/kv). It needs the
+`--unstable` to run locally.
