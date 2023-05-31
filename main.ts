@@ -33,7 +33,7 @@ const CHANNEL = Number(Deno.env.get("CHANNEL"));
 if (isNaN(CHANNEL)) throw new Error("CHANNEL should be a chat (channel) ID");
 const ZWSP = "\u200b"; // zero-width space character for IV.
 
-// See the rules/ directory for the Instant-View sources.
+// See the iv-rules/ directory for the Instant-View sources.
 const RHASHES: Record<string, string> = {
   "deno.news": "b5ba1c523db473", // https://deno.news/archive/...
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
@@ -75,7 +75,6 @@ const handlers: Record<string, () => Promise<string[]>> = {
   },
   "release": async () => {
     const lastChecked = await kv.get<number>(["denonews", "release"]);
-    console.log(lastChecked);
     const response = await fetch(FEEDS.release);
     if (!response.ok) return [];
     const release = await response.json();
