@@ -34,5 +34,5 @@ the following environmental variables to make this work properly:
 > _anyone_ on the internet from requesting the server and triggering the feed
 > fetching.
 
-This project uses [Deno KV](https://deno.com/manual/runtime/kv). It needs the
-`--unstable` to run locally.
+This project uses [Deno KV](https://deno.com/manual/runtime/kv). It currently requires
+`--unstable` flag to run locally (this situation maybe changed, check Deno KV documentation to make sure).
