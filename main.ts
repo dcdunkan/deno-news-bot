@@ -10,8 +10,8 @@
  * GitHub Repository: https://github.com/dcdunkan/deno-bot
  */
 
-import { load } from "https://deno.land/std@0.190.0/dotenv/mod.ts";
-import { serve } from "https://deno.land/std@0.190.0/http/mod.ts";
+import { load } from "https://deno.land/std@0.192.0/dotenv/mod.ts";
+import { serve } from "https://deno.land/std@0.192.0/http/mod.ts";
 import { parseFeed } from "https://deno.land/x/rss@0.6.0/mod.ts";
 import { Bot } from "https://deno.land/x/grammy@v1.16.1/mod.ts";
 
@@ -42,12 +42,13 @@ const RHASHES: Record<string, string> = {
 const FEEDS = {
   blog: "https://deno.com/feed",
   news: "https://buttondown.email/denonews/rss",
-  status: "https://denostatus.com/history.rss",
   release: "https://api.github.com/repos/denoland/deno/releases/latest",
   typescript: "https://devblogs.microsoft.com/typescript/feed/",
 };
 
-const handlers: Record<string, () => Promise<string[]>> = {
+type Feed = keyof typeof FEEDS;
+
+const handlers: Record<Feed, () => Promise<string[]>> = {
   "blog": async () => {
     const entries = await getLatestEntries("blog");
     return entries.map((entry) => {
@@ -63,14 +64,6 @@ const handlers: Record<string, () => Promise<string[]>> = {
       const url = (entry.links[0].href ?? entry.id)
         .replace("buttondown.email/denonews", "deno.news");
       return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
-    });
-  },
-  "status": async () => {
-    const entries = await getLatestEntries("status");
-    return entries.map((entry) => {
-      const title = entry.title?.value!;
-      const url = entry.links[0].href ?? entry.id;
-      return `<b>${esc(title)}</b>\n\n${esc(url)}`;
     });
   },
   "release": async () => {
@@ -96,20 +89,22 @@ const handlers: Record<string, () => Promise<string[]>> = {
   },
 };
 
-const ROUTES = Object.keys(handlers);
+const ROUTES = Object.keys(FEEDS) as Feed[];
 
 async function getLatestEntries(page: keyof typeof FEEDS) {
   const lastChecked = await kv.get<string[]>(["denonews", page]);
   const response = await fetch(FEEDS[page]);
   const textFeed = await response.text();
   const feed = await parseFeed(textFeed);
-  if (feed.entries.length == 0) return [];
+  if (feed.entries.length === 0) return [];
 
   if (lastChecked.value == null) {
     // freshly added feed -> store the latest entry.
-    if (feed.entries[0].id != null) {
-      await kv.set(["denonews", page], [feed.entries[0].id]);
-    }
+    const entries = feed.entries
+      .filter((entry) => entry.id != null)
+      .slice(0, LAST_X_TO_STORE)
+      .map((entry) => entry.id);
+    await kv.set(["denonews", page], entries);
     return [];
   }
 
@@ -139,15 +134,26 @@ async function handle(req: Request) {
   }
   const messages = await routeHandler();
   for (const message of messages) {
-    const sent = ["status", "release"].includes(route)
+    const sent = route === "release"
       ? await post(message, { disable_web_page_preview: true })
       : await post(message);
-    if (route === "release") await pin(sent.message_id);
+    if (route === "release") {
+      const lastPinned = await kv.get<string>(["denonews", "release_pin"]);
+      if (lastPinned.value != null) {
+        try { // Maybe the message was unpinned by administrators.
+          await bot.api.unpinChatMessage(CHANNEL, Number(lastPinned.value));
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      await bot.api.pinChatMessage(CHANNEL, sent.message_id);
+      await kv.set(["denonews", "release_pin"], sent.message_id);
+    }
   }
   return Response.json({ ok: true, checked: route, sent: messages.length });
 }
 
-function selectRoute() {
+function selectRoute(): Feed {
   return ROUTES[new Date().getMinutes() % ROUTES.length];
 }
 
@@ -155,10 +161,6 @@ type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
 
 function post(text: string, options?: SendMessageOptions) {
   return bot.api.sendMessage(CHANNEL, text, { parse_mode: "HTML", ...options });
-}
-
-function pin(message_id: number) {
-  return bot.api.pinChatMessage(CHANNEL, message_id);
 }
 
 function iv(url: string) {

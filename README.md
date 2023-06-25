@@ -11,7 +11,6 @@ The bot currently fetches the posts from the following sources:
 - <https://github.com/denoland/deno/releases/latest>
 - <https://deno.com/blog>\*
 - <https://deno.news/archive>\*
-- <https://denostatus.com>
 - <https://devblogs.microsoft.com/typescript>\*
 
 > \*: Indicates that the feed has a custom Telegram Instant-View. See the
@@ -34,5 +33,6 @@ the following environmental variables to make this work properly:
 > _anyone_ on the internet from requesting the server and triggering the feed
 > fetching.
 
-This project uses [Deno KV](https://deno.com/manual/runtime/kv). It currently requires
-`--unstable` flag to run locally (this situation maybe changed, check Deno KV documentation to make sure).
+This project uses [Deno KV](https://deno.com/manual/runtime/kv). It currently
+requires `--unstable` flag to run locally (this situation maybe changed, check
+Deno KV documentation to make sure).
