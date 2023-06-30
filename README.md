@@ -9,6 +9,7 @@ channel. Currently posting at <https://t.me/deno_news>, join for updates.
 The bot currently fetches the posts from the following sources:
 
 - <https://github.com/denoland/deno/releases/latest>
+- <https://github.com/denoland/deno_std/releases/latest>
 - <https://deno.com/blog>\*
 - <https://deno.news/archive>\*
 - <https://devblogs.microsoft.com/typescript>\*
@@ -19,7 +20,7 @@ The bot currently fetches the posts from the following sources:
 #### Setup
 
 You don't need to set anything up, if you're only looking for the
-realtime-updates. Just join: <https://t.me/deno_news>.
+real-time updates. Just join: <https://t.me/deno_news>.
 
 Setup a cron-job for calling the main end point every 1 minute. You need to set
 the following environmental variables to make this work properly:
@@ -34,5 +35,5 @@ the following environmental variables to make this work properly:
 > fetching.
 
 This project uses [Deno KV](https://deno.com/manual/runtime/kv). It currently
-requires `--unstable` flag to run locally (this situation maybe changed, check
+requires the `--unstable` flag to run locally (this situation maybe changed at the time you're reading this; check
 Deno KV documentation to make sure).

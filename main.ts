@@ -13,7 +13,7 @@
 import { load } from "https://deno.land/std@0.192.0/dotenv/mod.ts";
 import { serve } from "https://deno.land/std@0.192.0/http/mod.ts";
 import { parseFeed } from "https://deno.land/x/rss@0.6.0/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.16.1/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.17.1/mod.ts";
 
 // To avoid reposting from the beginning in case of removal of the
 // last stored entry, we store last X feed entry IDs and iterate
@@ -39,17 +39,19 @@ const RHASHES: Record<string, string> = {
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
 };
+
 const FEEDS = {
   blog: "https://deno.com/feed",
   news: "https://buttondown.email/denonews/rss",
-  release: "https://api.github.com/repos/denoland/deno/releases/latest",
+  release: "denoland/deno",
+  std_release: "denoland/deno_std",
   typescript: "https://devblogs.microsoft.com/typescript/feed/",
-};
+} as const;
 
 type Feed = keyof typeof FEEDS;
 
 const handlers: Record<Feed, () => Promise<string[]>> = {
-  "blog": async () => {
+  blog: async () => {
     const entries = await getLatestEntries("blog");
     return entries.map((entry) => {
       const title = entry.title?.value!;
@@ -57,7 +59,7 @@ const handlers: Record<Feed, () => Promise<string[]>> = {
       return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
     });
   },
-  "news": async () => {
+  news: async () => {
     const entries = await getLatestEntries("news");
     return entries.map((entry) => {
       const title = entry.title?.value!;
@@ -66,20 +68,17 @@ const handlers: Record<Feed, () => Promise<string[]>> = {
       return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
     });
   },
-  "release": async () => {
-    const lastChecked = await kv.get<number>(["denonews", "release"]);
-    const response = await fetch(FEEDS.release);
-    if (!response.ok) return [];
-    const release = await response.json();
-    if (lastChecked.value == null) {
-      if (release.id != null) await kv.set(["denonews", "release"], release.id);
-      return [];
-    }
-    if (release.id == null || release.id === lastChecked.value) return [];
-    await kv.set(["denonews", "release"], release.id);
-    return [`<b>${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
+  release: async () => {
+    const release = await getLatestRelease("release");
+    if (release == null) return [];
+    return [`<b>Deno ${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
   },
-  "typescript": async () => {
+  std_release: async () => {
+    const release = await getLatestRelease("std_release");
+    if (release == null) return [];
+    return [`<b>std ${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
+  },
+  typescript: async () => {
     const entries = await getLatestEntries("typescript");
     return entries.map((entry) => {
       const title = entry.title?.value!;
@@ -91,7 +90,7 @@ const handlers: Record<Feed, () => Promise<string[]>> = {
 
 const ROUTES = Object.keys(FEEDS) as Feed[];
 
-async function getLatestEntries(page: keyof typeof FEEDS) {
+async function getLatestEntries(page: Feed) {
   const lastChecked = await kv.get<string[]>(["denonews", page]);
   const response = await fetch(FEEDS[page]);
   const textFeed = await response.text();
@@ -125,6 +124,23 @@ async function getLatestEntries(page: keyof typeof FEEDS) {
   return entries;
 }
 
+interface Release {
+  name: string;
+  id: number;
+  html_url: string;
+}
+
+async function getLatestRelease(repo: Feed) {
+  const lastSent = await kv.get<number>(["denonews", repo]);
+  const url = `https://api.github.com/repos/${FEEDS[repo]}/releases/latest`;
+  const response = await fetch(url);
+  if (!response.ok) return;
+  const release = await response.json() as Release;
+  if (lastSent.value != null && release.id === lastSent.value) return;
+  await kv.set(["denonews", repo], release.id);
+  return release;
+}
+
 async function handle(req: Request) {
   const route = selectRoute();
   const routeHandler = handlers[route];
@@ -134,7 +150,7 @@ async function handle(req: Request) {
   }
   const messages = await routeHandler();
   for (const message of messages) {
-    const sent = route === "release"
+    const sent = route === "release" || route === "std_release"
       ? await post(message, { disable_web_page_preview: true })
       : await post(message);
     if (route === "release") {
