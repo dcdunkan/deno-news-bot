@@ -6,21 +6,18 @@
  * IV Rules are in the rules/ directory. 'secret' header should be set
  * when calling the end point (if SECRET is set in environmental variables).
  *
- * Licensed under MIT | Copyright (c) 2022-Present Dunkan
+ * Licensed under MIT | Copyright (c) 2022-2023 Dunkan
  * GitHub Repository: https://github.com/dcdunkan/deno-bot
  */
 
-import { load } from "https://deno.land/std@0.192.0/dotenv/mod.ts";
-import { serve } from "https://deno.land/std@0.192.0/http/mod.ts";
-import { parseFeed } from "https://deno.land/x/rss@0.6.0/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.17.1/mod.ts";
+import { parseFeed } from "https://deno.land/x/rss@1.0.0/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.17.2/mod.ts";
 
 // To avoid reposting from the beginning in case of removal of the
 // last stored entry, we store last X feed entry IDs and iterate
 // through the all entries until we hit the first "already sent" entry.
 const LAST_X_TO_STORE = 12;
 
-await load({ export: true });
 const env = Deno.env.toObject() as {
   BOT_TOKEN: string;
   SECRET?: string;
@@ -46,6 +43,7 @@ const FEEDS = {
   release: "denoland/deno",
   std_release: "denoland/deno_std",
   typescript: "https://devblogs.microsoft.com/typescript/feed/",
+  deploy_changelog: "https://deno.com/deploy/feed",
 } as const;
 
 type Feed = keyof typeof FEEDS;
@@ -80,6 +78,14 @@ const handlers: Record<Feed, () => Promise<string[]>> = {
   },
   typescript: async () => {
     const entries = await getLatestEntries("typescript");
+    return entries.map((entry) => {
+      const title = entry.title?.value!;
+      const url = entry.links[0].href ?? entry.id;
+      return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
+    });
+  },
+  deploy_changelog: async () => {
+    const entries = await getLatestEntries("deploy_changelog");
     return entries.map((entry) => {
       const title = entry.title?.value!;
       const url = entry.links[0].href ?? entry.id;
@@ -191,9 +197,9 @@ function esc(text: string) {
     .replace(/>/g, "&gt;");
 }
 
-serve(handle, {
+Deno.serve({
   onError: (err) => {
     console.error(err);
     return new Response("Internal Server Error", { status: 500 });
   },
-});
+}, handle);

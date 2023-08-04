@@ -16,18 +16,21 @@ kicker: //head/meta[@name="description"]/@content
 published_date: //time
 body: //article
 
-# FIXES
-@split_parent: //a/img
-@split_parent: //p/img
-@split_parent: //p/video
 @remove: //time
-@remove: //hr # I hate its preview
 
 # FIXES
 # Move <img> from <p> to outside ...
 @split_parent: //a/img
 @split_parent: //p/img
 @split_parent: //p/video
+
+@map (//td) {
+  $cell: $@
+  @if ($cell/img) {
+    @remove: $cell
+  }
+}
+
 # Remove the weird ruler (I hate its preview)
 @remove: //hr
 # subscription section
@@ -40,3 +43,4 @@ body: //article
 @set_attr(name, @href): //a[has-class("anchor")]
 # ... and stripping leading hashes for anchor names ...
 @replace("^#", ""): $$/@name
+
