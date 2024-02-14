@@ -1,23 +1,34 @@
-# github.com/dcdunkan/deno-bot
+# https://github.com/dcdunkan/deno-news-bot
 
 ~version: "2.1"
 ~allowed_origin: "https://devblogs.microsoft.com"
 
 ?path: /typescript/.*
 
-@replace("^/", "https://svg2png.deno.dev/https://deno.com/"): //img[ends-with(@src, ".svg")]/@src
+# svg2png is awesome!
+@replace("^/", "https://svg2png.deno.dev/https://devblogs.microsoft.com/"): //img[ends-with(@src, ".svg")]/@src
 
 site_name: "TypeScript DevBlog"
 channel: "@deno_news"
-
 title: //h1
-image_url: //head/meta[@property="og:image"]/@content
+image_url: null #//head/meta[@property="og:image"]/@content
 kicker: //head/meta[@name="description"]/@content
 author: //h5[@class="post-authorname"]/a
 published_date: //time
 body: //article
 
+# create an image with the src as img_url and apply it as the cover
+@prepend(<img>, src, //head/meta[@property="og:image"]/@content): //article
+cover: $@
+
+@remove: //object # weird ms devblogs
 @split_parent: //p/img
 @remove: //div[has-class("author-header")]
 @remove: //div[has-class("entry-meta")]
 @remove: //div[has-class("postdetail-author-info")]
+
+# stay within the IV
+@replace("^/", "https://t.me/iv?rhash=24952bb2da22c6&url=https%3A%2F%2Fdevblogs.microsoft.com%2F"): //a/@href
+# fix anchors
+@set_attr(name, @href): //a[starts-with(@href, "#")]
+@prepend(<a>, name, @id): //h2
