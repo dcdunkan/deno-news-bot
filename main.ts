@@ -1,12 +1,9 @@
 /**
- * Script for fetching Deno (https://deno.land) related RSS feeds and
- * posting them in a Telegram channel. Requires a cron-job calling the
- * main end point every 1 minute. The feed to be fetched is automatically
- * selected one-by-one. Join https://t.me/deno_news for demo.
- * IV Rules are in the rules/ directory. 'secret' header should be set
- * when calling the end point (if SECRET is set in environmental variables).
+ * Script for fetching Deno (https://deno.com) related RSS feeds and
+ * posting them in a Telegram channel. Join https://t.me/deno_news for demo.
+ * IV Rules are in the rules/ directory.
  *
- * Licensed under MIT | Copyright (c) 2022-2023 Dunkan
+ * Licensed under MIT | Copyright (c) 2022-2024 Dunkan
  * GitHub Repository: https://github.com/dcdunkan/deno-bot
  */
 
@@ -18,8 +15,7 @@ import { FeedEntry } from "https://deno.land/x/rss@1.0.0/src/types/feed.ts";
 // last stored entry, we store last X feed entry IDs and iterate
 // through the all entries until we hit the first "already sent" entry.
 const LAST_X_TO_STORE = 12;
-const ENV = env("BOT_TOKEN", "CHANNEL", "SECRET");
-
+const ENV = env("BOT_TOKEN", "CHANNEL");
 const kv = await Deno.openKv();
 const bot = new Bot(ENV.BOT_TOKEN);
 const CHANNEL = Number(ENV.CHANNEL);
@@ -30,6 +26,7 @@ const RHASHES: Record<string, string> = {
   "deno.news": "b5ba1c523db473", // https://deno.news/archive/...
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
+  "v8.dev": "8320f1ac30d205", // https://v8.dev/{blog/,docs/}...
 };
 const FEEDS = {
   blog: "https://deno.com/feed",
@@ -43,7 +40,7 @@ const FEEDS = {
 const ROUTES = Object.keys(FEEDS) as Feed[];
 
 type Feed = keyof typeof FEEDS;
-type FeedHandler = () => Promise<{ message: string; previewUrl?: string }[]>;
+type NewsHandler = () => Promise<{ message: string; previewUrl?: string }[]>;
 type FeedEntryProcessor = (entry: FeedEntry) => { title: string; url: string };
 type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
 interface Release {
@@ -52,7 +49,7 @@ interface Release {
   html_url: string;
 }
 
-const handlers: Record<Feed, FeedHandler> = {
+const newsHandlers: Record<Feed, NewsHandler> = {
   blog: getFeedHandler("blog"),
   news: getFeedHandler("news", (entry) => ({
     title: entry.title?.value ?? "",
@@ -65,7 +62,7 @@ const handlers: Record<Feed, FeedHandler> = {
   std_release: getReleaseHandler("std_release", "std"),
 };
 
-async function getLatestFeedEntries(page: Feed) {
+async function getLatestFeedEntries(page: Feed): Promise<FeedEntry[]> {
   const lastChecked = await kv.get<string[]>(["denonews", page]);
   const response = await fetch(FEEDS[page]);
   const textFeed = await response.text();
@@ -75,12 +72,12 @@ async function getLatestFeedEntries(page: Feed) {
     // freshly added feed -> store the latest entry.
     const entries = feed.entries
       .filter((entry) => entry.id != null)
-      .slice(0, LAST_X_TO_STORE)
-      .map((entry) => entry.id);
-    await kv.set(["denonews", page], entries);
-    return [];
+      .slice(0, LAST_X_TO_STORE);
+    const ids = entries.map((entry) => entry.id);
+    await kv.set(["denonews", page], ids);
+    return [entries[0]]; // send latest entry -> everything works fine.
   }
-  const entries: typeof feed.entries = [];
+  const entries: FeedEntry[] = [];
   for (const entry of feed.entries) {
     if (entry.id == null) continue; // this shouldn't be happening
     if (lastChecked.value.includes(entry.id)) break;
@@ -96,16 +93,18 @@ async function getLatestFeedEntries(page: Feed) {
   return entries;
 }
 
-function getDefaultEntryProcessor(): FeedEntryProcessor {
-  return ((entry) => ({ title: entry.title?.value ?? "", url: entry.links[0].href ?? entry.id }));
-}
-
-function getFeedHandler(feed: Feed, entryProcessor: FeedEntryProcessor = getDefaultEntryProcessor()): FeedHandler {
+function getFeedHandler(
+  feed: Feed,
+  entryProcessor: FeedEntryProcessor = (entry) => ({
+    title: entry.title?.value ?? "",
+    url: entry.links[0].href ?? entry.id,
+  }),
+): NewsHandler {
   return async () => {
     const entries = await getLatestFeedEntries(feed);
     return entries.map((entry) => {
       const { title, url } = entryProcessor(entry);
-      return { message: `<b>${esc(title)}</b>\n\n${esc(url)}`, url: iv(url) };
+      return { message: `<b>${esc(title)}</b>\n\n${esc(url)}`, previewUrl: iv(url) };
     });
   };
 }
@@ -121,7 +120,7 @@ async function getLatestRelease(repo: Feed) {
   return release;
 }
 
-function getReleaseHandler(repo: Feed, title: string): FeedHandler {
+function getReleaseHandler(repo: Feed, title: string): NewsHandler {
   return async () => {
     const release = await getLatestRelease(repo);
     if (release == null) return [];
@@ -129,35 +128,28 @@ function getReleaseHandler(repo: Feed, title: string): FeedHandler {
   };
 }
 
-async function handle(req: Request) {
-  const route = selectRoute();
-  const routeHandler = handlers[route];
-  const secretHeader = req.headers.get("secret");
-  if (ENV.SECRET != null && secretHeader !== ENV.SECRET) {
-    return new Response("unauthorized", { status: 401 });
-  }
-  const messages = await routeHandler();
+Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
+  const feed = selectNewsHandler();
+  const messages = await newsHandlers[feed]();
   for (const { message, previewUrl } of messages) {
-    const sent = route === "release" || route === "std_release"
+    const sent = feed === "release" || feed === "std_release"
       ? await post(message, { link_preview_options: { is_disabled: true } })
       : await post(message, previewUrl ? { link_preview_options: { url: previewUrl, prefer_small_media: true } } : {});
-    if (route === "release") {
-      const lastPinned = await kv.get<string>(["denonews", "release_pin"]);
-      if (lastPinned.value != null) {
-        try { // Maybe the message was unpinned by administrators.
-          await bot.api.unpinChatMessage(CHANNEL, Number(lastPinned.value));
-        } catch (error) {
-          console.error(error);
-        }
-      }
-      await bot.api.pinChatMessage(CHANNEL, sent.message_id);
+    if (feed !== "release") continue;
+    const lastPinned = await kv.get<string>(["denonews", "release_pin"]);
+    if (lastPinned.value == null) continue;
+    try { // Maybe the message was unpinned by administrators.
+      await bot.api.unpinChatMessage(CHANNEL, Number(lastPinned.value));
+      await bot.api.pinChatMessage(CHANNEL, sent.message_id, { disable_notification: true });
       await kv.set(["denonews", "release_pin"], sent.message_id);
+    } catch (error) {
+      console.error(error);
     }
   }
-  return Response.json({ ok: true, checked: route, sent: messages.length });
-}
+  console.log({ feed, sent: messages.length });
+});
 
-function selectRoute(): Feed {
+function selectNewsHandler(): Feed {
   return ROUTES[new Date().getMinutes() % ROUTES.length];
 }
 
@@ -183,10 +175,3 @@ function env<T extends string>(...keys: T[]): { [key in T]: string } {
     {} as { [key in T]: string },
   );
 }
-
-Deno.serve({
-  onError: (err) => {
-    console.error(err);
-    return new Response("Internal Server Error", { status: 500 });
-  },
-}, handle);

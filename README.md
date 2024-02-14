@@ -24,11 +24,10 @@ The bot currently fetches the posts from the following sources:
 
 #### Setup
 
-You don't need to set anything up, if you're only looking for the
-real-time updates. Just join: <https://t.me/deno_news>.
+You don't need to set anything up, if you're only looking for the real-time updates.
+Just join: <https://t.me/deno_news>.
 
-Setup a cron-job for calling the main end point every 1 minute. You need to set
-the following environmental variables to make this work properly:
+You need to set the following environmental variables to make this work properly:
 
 - BOT_TOKEN: Bot token of the Telegram bot.
 - CHANNEL: Chat ID where the bot is allowed to send and pin messages (only
@@ -39,5 +38,6 @@ the following environmental variables to make this work properly:
 > _anyone_ on the internet from requesting the server and triggering the feed
 > fetching.
 
-This project uses [Deno KV](https://docs.deno.com/deploy/kv/manual) to keep track
-of the already sent feed entries and to keep track of the last pinned message.
+This project uses
+- [Deno KV](https://docs.deno.com/deploy/kv/manual) to keep track of the already sent feed entries and to keep track of the last pinned message.
+- [Deno Cron](https://docs.deno.com/deploy/kv/cron) to fetch latest posts and send them to the channel.
