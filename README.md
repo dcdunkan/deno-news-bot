@@ -30,13 +30,7 @@ Just join: <https://t.me/deno_news>.
 You need to set the following environmental variables to make this work properly:
 
 - BOT_TOKEN: Bot token of the Telegram bot.
-- CHANNEL: Chat ID where the bot is allowed to send and pin messages (only
-  release news are pinned).
-
-> If you want to, you can also set a SECRET, which should be also added in the
-> "Secret" header when requesting the server endpoint. This helps to avoid
-> _anyone_ on the internet from requesting the server and triggering the feed
-> fetching.
+- CHANNEL: Chat ID where the bot is allowed to send and pin messages (only release news are pinned).
 
 This project uses
 - [Deno KV](https://docs.deno.com/deploy/kv/manual) to keep track of the already sent feed entries and to keep track of the last pinned message.
