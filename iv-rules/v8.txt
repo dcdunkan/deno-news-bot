@@ -1,0 +1,62 @@
+# https://github.com/dcdunkan/deno-news-bot
+
+~version: "2.1"
+~allowed_origin: "https://v8.dev"
+
+# DOCS
+?path: /docs(/)?.*
+site_name: "V8 Docs"
+
+# BLOG
+?path: /blog(/)?.*
+
+site_name: "V8 Blog"
+
+@if ( //time ) {
+  published_date: //time
+}
+
+# FOR BOTH
+?true
+
+@replace("^https://v8.dev/docs$", "https://t.me/iv?rhash=8320f1ac30d205&url=https%3A%2F%2Fv8.dev%2Fdocs"): //a/@href
+@replace("^https://v8.dev/docs/", "https://t.me/iv?rhash=8320f1ac30d205&url=https%3A%2F%2Fv8.dev%2Fdocs%2F"): //a/@href
+@replace("^https://v8.dev/blog/", "https://t.me/iv?rhash=8320f1ac30d205&url=https%3A%2F%2Fv8.dev%2Fblog%2F"): //a/@href
+
+@replace("^/", "https://svg2png.deno.dev/https://v8.dev/"): //img[ends-with(@src, ".svg")]/@src
+
+title: //main/h1
+channel: "@deno_news"
+
+@match("^Posted by (.+)$", 1): //footer
+
+body: //main
+kicker: //head/meta[@name="description"]/@content
+author: //footer
+
+@remove: //article/header
+@remove: //hr
+@remove: //footer
+
+@replace_tag(<blockquote>): //div[has-class("note")]
+
+@split_parent: //p/figure
+
+# remove the anchor
+@replace(".*", ""): //a[has-class("bookmark")]
+
+@set_attr(name, @href): //a[has-class("bookmark")]
+@replace("^##", ""): //a/@name
+
+@set_attr(name, @id): //a[starts-with(@href, "#")]
+@replace("^#", ""): $$/@name
+@remove: //a[starts-with(@href, "#")]/@href
+
+$subheaders: //h2
+$subheaders+: //h3
+$subheaders+: //h4
+$subheaders+: //h5
+$subheaders+: //h6
+
+@set_attr(name, @id): $subheaders
+@prepend(<a>, name, @id): //li

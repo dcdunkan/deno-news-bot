@@ -1,4 +1,4 @@
-# github.com/dcdunkan/deno-bot
+# https://github.com/dcdunkan/deno-news-bot
 
 ~version: "2.1"
 ~allowed_origin: "https://deno.news"
@@ -43,4 +43,3 @@ body: //article
 @set_attr(name, @href): //a[has-class("anchor")]
 # ... and stripping leading hashes for anchor names ...
 @replace("^#", ""): $$/@name
-
