@@ -1,4 +1,4 @@
-# github.com/dcdunkan/deno-bot
+# https://github.com/dcdunkan/deno-news-bot
 
 ~version: "2.1"
 ~allowed_origin: "https://deno.com"
@@ -8,23 +8,29 @@
 # svg2png is awesome!
 @replace("^/", "https://svg2png.deno.dev/https://deno.com/"): //img[ends-with(@src, ".svg")]/@src
 
-site_name: "Deno Blog"
-channel: "@deno_news"
-
-@if ( //body/div/div/div[1]/img ) {
-  cover: //img[1]
+@if ( //body//main/div[1]/img ) {
+  cover: //body//main/div[1]/img[1]
 }
 
+$authors+: //article/div[1]/ul[1]/li
+@combine(", "): $authors
+
+site_name: "Deno Blog"
+channel: "@deno_news"
 title: //h1
 image_url: //head/meta[@property="og:image"]/@content
 kicker: //head/meta[@name="description"]/@content
-author: //article/div/p[2]
+author: $authors
 published_date: //time
 body: //article
 
+@remove: $authors
+
+@wrap(<blockquote>): //article/div[1]/div[1]
+
 # FIXES
 # Move <img> from <p> to outside ...
-@split_parent: //a/img
+@remove: //a/img
 @split_parent: //p/img
 @split_parent: //p/video
 # Remove author links
@@ -36,7 +42,6 @@ body: //article
 
 # ANCHOR FIX (Thanks to @KnorpelSenf)
 # Rewrite links to stay within IV ...
-# @replace("^/", "https://t.me/iv?rhash=28aee3eda1037a&url=https%3A%2F%2Fdeno.com%2Fblog%2F"): //a/@href
 @replace("https://deno.com/blog/", "https://t.me/iv?rhash=28aee3eda1037a&url=https%3A%2F%2Fdeno.com%2Fblog%2F"): //a/@href
 # Anchor stuff
 @set_attr(name, @href): //a[has-class("anchor")]
