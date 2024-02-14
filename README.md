@@ -4,19 +4,23 @@ Script for posting Deno (https://deno.land) related updates such as release
 info, blog posts, and other news from various official sources in a Telegram
 channel. Currently posting at <https://t.me/deno_news>, join for updates.
 
-#### Sources (6)
+#### Sources (7)
 
 The bot currently fetches the posts from the following sources:
 
 - <https://github.com/denoland/deno/releases/latest>
 - <https://github.com/denoland/deno_std/releases/latest>
 - <https://deno.com/blog>\*
+- <https://v8.dev/blog>\*
 - <https://deno.com/deploy/changelog>
 - <https://deno.news/archive>\*
 - <https://devblogs.microsoft.com/typescript>\*
 
+> Refer to the main.ts file to find the RSS/Atom feed sources.
+
 > \*: Indicates that the feed has a custom Telegram Instant-View. See the
-> `iv-rules` directory for the Instant-View rule source.
+> `iv-rules` directory for the Instant-View rule source. Also, I need help with
+> keeping the instant views up-to-date. Contribute if you can.
 
 #### Setup
 
@@ -35,6 +39,5 @@ the following environmental variables to make this work properly:
 > _anyone_ on the internet from requesting the server and triggering the feed
 > fetching.
 
-This project uses [Deno KV](https://deno.com/manual/runtime/kv). It currently
-requires the `--unstable` flag to run locally (this situation maybe changed at the time you're reading this; check
-Deno KV documentation to make sure).
+This project uses [Deno KV](https://docs.deno.com/deploy/kv/manual) to keep track
+of the already sent feed entries and to keep track of the last pinned message.
