@@ -11,24 +11,19 @@
  */
 
 import { parseFeed } from "https://deno.land/x/rss@1.0.0/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.17.2/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.20.3/mod.ts";
+import { FeedEntry } from "https://deno.land/x/rss@1.0.0/src/types/feed.ts";
 
 // To avoid reposting from the beginning in case of removal of the
 // last stored entry, we store last X feed entry IDs and iterate
 // through the all entries until we hit the first "already sent" entry.
 const LAST_X_TO_STORE = 12;
-
-const env = Deno.env.toObject() as {
-  BOT_TOKEN: string;
-  SECRET?: string;
-};
+const ENV = env("BOT_TOKEN", "CHANNEL", "SECRET");
 
 const kv = await Deno.openKv();
-
-const bot = new Bot(env.BOT_TOKEN);
-const CHANNEL = Number(Deno.env.get("CHANNEL"));
+const bot = new Bot(ENV.BOT_TOKEN);
+const CHANNEL = Number(ENV.CHANNEL);
 if (isNaN(CHANNEL)) throw new Error("CHANNEL should be a chat (channel) ID");
-const ZWSP = "\u200b"; // zero-width space character for IV.
 
 // See the iv-rules/ directory for the Instant-View sources.
 const RHASHES: Record<string, string> = {
@@ -36,73 +31,46 @@ const RHASHES: Record<string, string> = {
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
 };
-
 const FEEDS = {
   blog: "https://deno.com/feed",
   news: "https://buttondown.email/denonews/rss",
+  typescript: "https://devblogs.microsoft.com/typescript/feed/",
+  v8_blog: "https://v8.dev/blog.atom",
+  deploy_changelog: "https://deno.com/deploy/feed",
   release: "denoland/deno",
   std_release: "denoland/deno_std",
-  typescript: "https://devblogs.microsoft.com/typescript/feed/",
-  deploy_changelog: "https://deno.com/deploy/feed",
 } as const;
-
-type Feed = keyof typeof FEEDS;
-
-const handlers: Record<Feed, () => Promise<string[]>> = {
-  blog: async () => {
-    const entries = await getLatestEntries("blog");
-    return entries.map((entry) => {
-      const title = entry.title?.value!;
-      const url = entry.links[0].href ?? entry.id;
-      return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
-    });
-  },
-  news: async () => {
-    const entries = await getLatestEntries("news");
-    return entries.map((entry) => {
-      const title = entry.title?.value!;
-      const url = (entry.links[0].href ?? entry.id)
-        .replace("buttondown.email/denonews", "deno.news");
-      return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
-    });
-  },
-  release: async () => {
-    const release = await getLatestRelease("release");
-    if (release == null) return [];
-    return [`<b>Deno ${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
-  },
-  std_release: async () => {
-    const release = await getLatestRelease("std_release");
-    if (release == null) return [];
-    return [`<b>std ${esc(release.name)}</b>\n\n${esc(release.html_url)}`];
-  },
-  typescript: async () => {
-    const entries = await getLatestEntries("typescript");
-    return entries.map((entry) => {
-      const title = entry.title?.value!;
-      const url = entry.links[0].href ?? entry.id;
-      return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
-    });
-  },
-  deploy_changelog: async () => {
-    const entries = await getLatestEntries("deploy_changelog");
-    return entries.map((entry) => {
-      const title = entry.title?.value!;
-      const url = entry.links[0].href ?? entry.id;
-      return `<b>${esc(title)}</b>${iv(url)}\n\n${esc(url)}`;
-    });
-  },
-};
-
 const ROUTES = Object.keys(FEEDS) as Feed[];
 
-async function getLatestEntries(page: Feed) {
+type Feed = keyof typeof FEEDS;
+type FeedHandler = () => Promise<{ message: string; previewUrl?: string }[]>;
+type FeedEntryProcessor = (entry: FeedEntry) => { title: string; url: string };
+type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
+interface Release {
+  name: string;
+  id: number;
+  html_url: string;
+}
+
+const handlers: Record<Feed, FeedHandler> = {
+  blog: getFeedHandler("blog"),
+  news: getFeedHandler("news", (entry) => ({
+    title: entry.title?.value ?? "",
+    url: (entry.links[0].href ?? entry.id).replace("buttondown.email/denonews", "deno.news"),
+  })),
+  typescript: getFeedHandler("typescript"),
+  v8_blog: getFeedHandler("v8_blog"),
+  deploy_changelog: getFeedHandler("deploy_changelog"),
+  release: getReleaseHandler("release", "Deno"),
+  std_release: getReleaseHandler("std_release", "std"),
+};
+
+async function getLatestFeedEntries(page: Feed) {
   const lastChecked = await kv.get<string[]>(["denonews", page]);
   const response = await fetch(FEEDS[page]);
   const textFeed = await response.text();
   const feed = await parseFeed(textFeed);
   if (feed.entries.length === 0) return [];
-
   if (lastChecked.value == null) {
     // freshly added feed -> store the latest entry.
     const entries = feed.entries
@@ -112,14 +80,12 @@ async function getLatestEntries(page: Feed) {
     await kv.set(["denonews", page], entries);
     return [];
   }
-
   const entries: typeof feed.entries = [];
   for (const entry of feed.entries) {
     if (entry.id == null) continue; // this shouldn't be happening
     if (lastChecked.value.includes(entry.id)) break;
     entries.unshift(entry); // FIFO
   }
-
   if (entries.length > 0) {
     const lastFew = feed.entries
       .filter((entry) => entry.id != null)
@@ -130,10 +96,18 @@ async function getLatestEntries(page: Feed) {
   return entries;
 }
 
-interface Release {
-  name: string;
-  id: number;
-  html_url: string;
+function getDefaultEntryProcessor(): FeedEntryProcessor {
+  return ((entry) => ({ title: entry.title?.value ?? "", url: entry.links[0].href ?? entry.id }));
+}
+
+function getFeedHandler(feed: Feed, entryProcessor: FeedEntryProcessor = getDefaultEntryProcessor()): FeedHandler {
+  return async () => {
+    const entries = await getLatestFeedEntries(feed);
+    return entries.map((entry) => {
+      const { title, url } = entryProcessor(entry);
+      return { message: `<b>${esc(title)}</b>\n\n${esc(url)}`, url: iv(url) };
+    });
+  };
 }
 
 async function getLatestRelease(repo: Feed) {
@@ -147,18 +121,26 @@ async function getLatestRelease(repo: Feed) {
   return release;
 }
 
+function getReleaseHandler(repo: Feed, title: string): FeedHandler {
+  return async () => {
+    const release = await getLatestRelease(repo);
+    if (release == null) return [];
+    return [{ message: `<b>${title} ${esc(release.name)}</b>\n\n${esc(release.html_url)}` }];
+  };
+}
+
 async function handle(req: Request) {
   const route = selectRoute();
   const routeHandler = handlers[route];
   const secretHeader = req.headers.get("secret");
-  if (env.SECRET != null && secretHeader !== env.SECRET) {
+  if (ENV.SECRET != null && secretHeader !== ENV.SECRET) {
     return new Response("unauthorized", { status: 401 });
   }
   const messages = await routeHandler();
-  for (const message of messages) {
+  for (const { message, previewUrl } of messages) {
     const sent = route === "release" || route === "std_release"
-      ? await post(message, { disable_web_page_preview: true })
-      : await post(message);
+      ? await post(message, { link_preview_options: { is_disabled: true } })
+      : await post(message, previewUrl ? { link_preview_options: { url: previewUrl, prefer_small_media: true } } : {});
     if (route === "release") {
       const lastPinned = await kv.get<string>(["denonews", "release_pin"]);
       if (lastPinned.value != null) {
@@ -179,15 +161,13 @@ function selectRoute(): Feed {
   return ROUTES[new Date().getMinutes() % ROUTES.length];
 }
 
-type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
-
 function post(text: string, options?: SendMessageOptions) {
   return bot.api.sendMessage(CHANNEL, text, { parse_mode: "HTML", ...options });
 }
 
 function iv(url: string) {
   const rhash = RHASHES[new URL(url).hostname];
-  return `<a href="https://t.me/iv?rhash=${rhash}&url=${url}">${ZWSP}</a>`;
+  if (rhash != null) return `https://t.me/iv?rhash=${rhash}&url=${url}`;
 }
 
 function esc(text: string) {
@@ -195,6 +175,13 @@ function esc(text: string) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function env<T extends string>(...keys: T[]): { [key in T]: string } {
+  return keys.reduce(
+    (v, k) => ({ ...v, [k]: Deno.env.get(k) as string }),
+    {} as { [key in T]: string },
+  );
 }
 
 Deno.serve({
