@@ -27,8 +27,9 @@ const RHASHES: Record<string, string> = {
   "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
   "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
   "v8.dev": "8320f1ac30d205", // https://v8.dev/{blog/,docs/}...
+  "bun.sh": "631ee27991e51a", // https://bun.sh/blog/...
 };
-const FEEDS = {
+const SOURCES = {
   blog: "https://deno.com/feed",
   news: "https://buttondown.email/denonews/rss",
   typescript: "https://devblogs.microsoft.com/typescript/feed/",
@@ -36,10 +37,11 @@ const FEEDS = {
   deploy_changelog: "https://deno.com/deploy/feed",
   release: "denoland/deno",
   std_release: "denoland/deno_std",
+  bun_blog: "https://bun.sh/rss.xml",
 } as const;
-const ROUTES = Object.keys(FEEDS) as Feed[];
+const ROUTES = Object.keys(SOURCES) as Feed[];
 
-type Feed = keyof typeof FEEDS;
+type Feed = keyof typeof SOURCES;
 type NewsHandler = () => Promise<{ message: string; previewUrl?: string }[]>;
 type FeedEntryProcessor = (entry: FeedEntry) => { title: string; url: string };
 type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
@@ -53,18 +55,19 @@ const newsHandlers: Record<Feed, NewsHandler> = {
   blog: getFeedHandler("blog"),
   news: getFeedHandler("news", (entry) => ({
     title: entry.title?.value ?? "",
-    url: (entry.links[0].href ?? entry.id).replace("buttondown.email/denonews", "deno.news"),
+    url: (entry.links?.[0].href ?? entry.id).replace("buttondown.email/denonews", "deno.news"),
   })),
   typescript: getFeedHandler("typescript"),
   v8_blog: getFeedHandler("v8_blog"),
   deploy_changelog: getFeedHandler("deploy_changelog"),
   release: getReleaseHandler("release", "Deno"),
   std_release: getReleaseHandler("std_release", "std"),
+  bun_blog: getFeedHandler("bun_blog"),
 };
 
 async function getLatestFeedEntries(page: Feed): Promise<FeedEntry[]> {
   const lastChecked = await kv.get<string[]>(["denonews", page]);
-  const response = await fetch(FEEDS[page]);
+  const response = await fetch(SOURCES[page]);
   const textFeed = await response.text();
   const feed = await parseFeed(textFeed);
   if (feed.entries.length === 0) return [];
@@ -111,7 +114,7 @@ function getFeedHandler(
 
 async function getLatestRelease(repo: Feed) {
   const lastSent = await kv.get<number>(["denonews", repo]);
-  const url = `https://api.github.com/repos/${FEEDS[repo]}/releases/latest`;
+  const url = `https://api.github.com/repos/${SOURCES[repo]}/releases/latest`;
   const response = await fetch(url);
   if (!response.ok) return;
   const release = await response.json() as Release;

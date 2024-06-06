@@ -1,0 +1,39 @@
+# https://github.com/dcdunkan/deno-news-bot
+
+~version: "2.1"
+~allowed_origin: "https://bun.sh"
+
+?path: /blog/.* 
+
+# svg2png is awesome!
+@replace("^/", "https://svg2png.deno.dev/https://bun.sh/"): //img[ends-with(@src, ".svg")]/@src
+
+site_name: "Bun Blog"
+channel: "@deno_news"
+title: //h1
+image_url: //head/meta[@property="og:image"]/@content
+kicker: //head/meta[@name="description"]/@content
+author: //section//a
+published_date: //time
+body: //article
+
+# FIXES
+# Move <img> from <p> to outside ...
+@split_parent: //a/img
+@split_parent: //p/img
+@split_parent: //p/video
+# Remove the weird ruler (I hate its preview)
+@remove: //hr
+# Remove the code language headers
+@remove: //div[has-class("CodeTabsHeader")]
+
+# ANCHOR FIX (Thanks to @KnorpelSenf)
+# Rewrite links to stay within IV ...
+@replace("https://bun.sh/blog/", "https://t.me/iv?rhash=631ee27991e51a&url=https%3A%2F%2Fbun.sh%2Fblog%2F"): //a/@href
+# Anchor stuff
+@set_attr(name, @href): //a[has-class("anchor")]
+# ... and stripping leading hashes for anchor names ...
+@replace("^#", ""): $$/@name
+
+# Remove tailing new lines from code blocks
+@replace("\n+$", ""): //code
