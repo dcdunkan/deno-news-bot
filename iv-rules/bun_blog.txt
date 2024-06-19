@@ -20,9 +20,9 @@ body: //article
 # FIXES
 # Move <img> from <p> to outside ...
 @split_parent: //a/img
-@split_parent: //p/img
+@split_parent: //p/figure
 @split_parent: //p/video
-# Remove the weird ruler (I hate its preview)
+# Remove the weird rulers (I hate their preview)
 @remove: //hr
 # Remove the code language headers
 @remove: //div[has-class("CodeTabsHeader")]
