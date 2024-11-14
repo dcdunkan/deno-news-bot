@@ -7,9 +7,8 @@
  * GitHub Repository: https://github.com/dcdunkan/deno-bot
  */
 
-import { parseFeed } from "https://deno.land/x/rss@1.0.0/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.20.3/mod.ts";
-import { FeedEntry } from "https://deno.land/x/rss@1.0.0/src/types/feed.ts";
+import { parseFeed, type FeedEntry } from "https://deno.land/x/rss@1.1.1/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.31.3/mod.ts";
 
 // To avoid reposting from the beginning in case of removal of the
 // last stored entry, we store last X feed entry IDs and iterate
