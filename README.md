@@ -15,6 +15,8 @@ The bot currently fetches the posts from the following sources:
 - <https://deno.com/deploy/changelog>
 - <https://deno.news/archive>\*
 - <https://devblogs.microsoft.com/typescript>\*
+- <https://bun.sh/blog>\*
+- <https://nodejs.org/en/blog>
 
 > Refer to the main.ts file to find the RSS/Atom feed sources.
 
