@@ -200,18 +200,19 @@ Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
                     }
                     : {},
             );
-        if (feed !== "release") continue;
-        const lastPinned = await kv.get<string>(["denonews", "release_pin"]);
-        if (lastPinned.value == null) continue;
-        try { // Maybe the message was unpinned by administrators.
-            await bot.api.unpinChatMessage(CHANNEL, Number(lastPinned.value));
-            await bot.api.pinChatMessage(CHANNEL, sent.message_id, {
-                disable_notification: true,
-            });
-            await kv.set(["denonews", "release_pin"], sent.message_id);
-        } catch (error) {
-            console.error(error);
+        if (feed !== "typescript") continue;
+        const lastPinned = await kv.get<number>(["denonews", "release_pin"]);
+        if (lastPinned.value != null) {
+            try { // Maybe the message was unpinned by administrators.
+                await bot.api.unpinChatMessage(CHANNEL, lastPinned.value);
+            } catch (error) {
+                console.error(error);
+            }
         }
+        await bot.api.pinChatMessage(CHANNEL, sent.message_id, {
+            disable_notification: true,
+        });
+        await kv.set(["denonews", "release_pin"], sent.message_id);
     }
     console.log({ feed, sent: messages.length });
 });
