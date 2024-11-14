@@ -4,7 +4,7 @@
  * IV Rules are in the rules/ directory.
  *
  * Licensed under MIT | Copyright (c) 2022-2024 Dunkan
- * GitHub Repository: https://github.com/dcdunkan/deno-bot
+ * GitHub Repository: https://github.com/dcdunkan/deno-news-bot
  */
 
 import {
@@ -40,11 +40,13 @@ const SOURCES = {
     release: "denoland/deno",
     std_release: "denoland/deno_std",
     bun_blog: "https://bun.sh/rss.xml",
+    nodejs_blog: "https://nodejs.org/en/feed/blog.xml",
 } as const;
 const ROUTES = Object.keys(SOURCES) as Feed[];
 
 type Feed = keyof typeof SOURCES;
 type NewsHandler = () => Promise<{ message: string; previewUrl?: string }[]>;
+type FeedEntryFilter = (entry: FeedEntry) => boolean;
 type FeedEntryProcessor = (entry: FeedEntry) => { title: string; url: string };
 type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
 interface Release {
@@ -52,22 +54,56 @@ interface Release {
     id: number;
     html_url: string;
 }
+interface FeedHandlerOptions {
+    entryFilter: FeedEntryFilter;
+    entryProcessor: FeedEntryProcessor;
+}
+
+const DEFAULT_FEED_ENTRY_FILTER: FeedEntryFilter = () => true;
+const DEFAULT_FEED_ENTRY_PROCESSOR: FeedEntryProcessor = (entry) => ({
+    title: entry.title?.value ?? "",
+    url: entry.links[0].href ?? entry.id,
+});
+const LINK_PREVIEW_DISABLED: Feed[] = ["release", "std_release"];
 
 const newsHandlers: Record<Feed, NewsHandler> = {
     blog: getFeedHandler("blog"),
-    news: getFeedHandler("news", (entry) => ({
-        title: entry.title?.value ?? "",
-        url: (entry.links?.[0].href ?? entry.id).replace(
-            "buttondown.email/denonews",
-            "deno.news",
-        ),
-    })),
+    news: getFeedHandler("news", {
+        entryProcessor: (entry) => ({
+            title: entry.title?.value ?? "",
+            url: (entry.links?.[0].href ?? entry.id).replace(
+                "buttondown.email/denonews",
+                "deno.news",
+            ),
+        }),
+    }),
     typescript: getFeedHandler("typescript"),
     v8_blog: getFeedHandler("v8_blog"),
     deploy_changelog: getFeedHandler("deploy_changelog"),
     release: getReleaseHandler("release", "Deno"),
     std_release: getReleaseHandler("std_release", "std"),
     bun_blog: getFeedHandler("bun_blog"),
+    nodejs_blog: getFeedHandler("nodejs_blog", {
+        entryFilter: (entry) => {
+            // ID is supposed to be `/blog/{type}/actual-blog-id`
+            const parts = entry.id.split("/");
+            // Definitely shouldn't be included.
+            if (parts[1] !== "blog" || typeof parts[2] !== "string") {
+                return false;
+            }
+            // Everything except events!
+            switch (parts[2]) {
+                case "announcements":
+                case "release":
+                case "vulnerability":
+                    return true;
+                case "events":
+                    return false;
+                default:
+                    return false;
+            }
+        },
+    }),
 };
 
 async function getLatestFeedEntries(page: Feed): Promise<FeedEntry[]> {
@@ -103,15 +139,17 @@ async function getLatestFeedEntries(page: Feed): Promise<FeedEntry[]> {
 
 function getFeedHandler(
     feed: Feed,
-    entryProcessor: FeedEntryProcessor = (entry) => ({
-        title: entry.title?.value ?? "",
-        url: entry.links[0].href ?? entry.id,
-    }),
+    options?: Partial<FeedHandlerOptions>,
 ): NewsHandler {
+    const opts = {
+        entryFilter: DEFAULT_FEED_ENTRY_FILTER,
+        entryProcessor: DEFAULT_FEED_ENTRY_PROCESSOR,
+        ...options,
+    };
     return async () => {
         const entries = await getLatestFeedEntries(feed);
-        return entries.map((entry) => {
-            const { title, url } = entryProcessor(entry);
+        return entries.filter(opts.entryFilter).map((entry) => {
+            const { title, url } = opts.entryProcessor(entry);
             return {
                 message: `<b>${esc(title)}</b>\n\n${esc(url)}`,
                 previewUrl: iv(url),
@@ -147,7 +185,7 @@ Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
     const feed = selectNewsHandler();
     const messages = await newsHandlers[feed]();
     for (const { message, previewUrl } of messages) {
-        const sent = feed === "release" || feed === "std_release"
+        const sent = LINK_PREVIEW_DISABLED.includes(feed)
             ? await post(message, {
                 link_preview_options: { is_disabled: true },
             })

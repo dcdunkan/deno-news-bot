@@ -3,5 +3,6 @@
         "indentWidth": 4,
         "lineWidth": 80,
         "proseWrap": "preserve"
-    }
+    },
+    "unstable": ["kv", "cron"]
 }
