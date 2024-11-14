@@ -33,5 +33,6 @@ You need to set the following environmental variables to make this work properly
 - CHANNEL: Chat ID where the bot is allowed to send and pin messages (only release news are pinned).
 
 This project uses
+
 - [Deno KV](https://docs.deno.com/deploy/kv/manual) to keep track of the already sent feed entries and to keep track of the last pinned message.
 - [Deno Cron](https://docs.deno.com/deploy/kv/cron) to fetch latest posts and send them to the channel.

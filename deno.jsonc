@@ -1,7 +1,7 @@
 {
-  "lock": false,
-  "fmt": {
-    "lineWidth": 120,
-    "proseWrap": "preserve"
-  }
+    "fmt": {
+        "indentWidth": 4,
+        "lineWidth": 80,
+        "proseWrap": "preserve"
+    }
 }
