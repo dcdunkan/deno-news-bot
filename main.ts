@@ -8,8 +8,8 @@
  */
 
 import {
-    type FeedEntry,
-    parseFeed,
+	type FeedEntry,
+	parseFeed,
 } from "https://deno.land/x/rss@1.1.1/mod.ts";
 import { Bot } from "https://deno.land/x/grammy@v1.31.3/mod.ts";
 
@@ -25,22 +25,22 @@ if (isNaN(CHANNEL)) throw new Error("CHANNEL should be a chat (channel) ID");
 
 // See the iv-rules/ directory for the Instant-View sources.
 const RHASHES: Record<string, string> = {
-    "deno.news": "b5ba1c523db473", // https://deno.news/archive/...
-    "deno.com": "28aee3eda1037a", // https://deno.com/blog/...
-    "devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
-    "v8.dev": "8320f1ac30d205", // https://v8.dev/{blog/,docs/}...
-    "bun.sh": "631ee27991e51a", // https://bun.sh/blog/...
+	"deno.news": "b5ba1c523db473", // https://deno.news/archive/...
+	"deno.com": "28aee3eda1037a", // https://deno.com/blog/...
+	"devblogs.microsoft.com": "24952bb2da22c6", // https://devblogs.microsoft.com/...
+	"v8.dev": "8320f1ac30d205", // https://v8.dev/{blog/,docs/}...
+	"bun.sh": "631ee27991e51a", // https://bun.sh/blog/...
 };
 const SOURCES = {
-    blog: "https://deno.com/feed",
-    news: "https://buttondown.email/denonews/rss",
-    typescript: "https://devblogs.microsoft.com/typescript/feed/",
-    v8_blog: "https://v8.dev/blog.atom",
-    deploy_changelog: "https://deno.com/deploy/feed",
-    release: "denoland/deno",
-    std_release: "denoland/deno_std",
-    bun_blog: "https://bun.sh/rss.xml",
-    nodejs_blog: "https://nodejs.org/en/feed/blog.xml",
+	blog: "https://deno.com/feed",
+	news: "https://buttondown.email/denonews/rss",
+	typescript: "https://devblogs.microsoft.com/typescript/feed/",
+	v8_blog: "https://v8.dev/blog.atom",
+	deploy_changelog: "https://deno.com/deploy/feed",
+	release: "denoland/deno",
+	std_release: "denoland/deno_std",
+	bun_blog: "https://bun.sh/rss.xml",
+	nodejs_blog: "https://nodejs.org/en/feed/blog.xml",
 } as const;
 const ROUTES = Object.keys(SOURCES) as Feed[];
 
@@ -50,199 +50,209 @@ type FeedEntryFilter = (entry: FeedEntry) => boolean;
 type FeedEntryProcessor = (entry: FeedEntry) => { title: string; url: string };
 type SendMessageOptions = Parameters<typeof bot.api.sendMessage>[2];
 interface Release {
-    name: string;
-    id: number;
-    html_url: string;
+	name: string;
+	id: number;
+	html_url: string;
 }
 interface FeedHandlerOptions {
-    entryFilter: FeedEntryFilter;
-    entryProcessor: FeedEntryProcessor;
+	entryFilter: FeedEntryFilter;
+	entryProcessor: FeedEntryProcessor;
 }
 
 const DEFAULT_FEED_ENTRY_FILTER: FeedEntryFilter = () => true;
 const DEFAULT_FEED_ENTRY_PROCESSOR: FeedEntryProcessor = (entry) => ({
-    title: entry.title?.value ?? "",
-    url: entry.links[0].href ?? entry.id,
+	title: entry.title?.value ?? "",
+	url: entry.links[0].href ?? entry.id,
 });
 const LINK_PREVIEW_DISABLED: Feed[] = ["release", "std_release"];
 
 const newsHandlers: Record<Feed, NewsHandler> = {
-    blog: getFeedHandler("blog"),
-    news: getFeedHandler("news", {
-        entryProcessor: (entry) => ({
-            title: entry.title?.value ?? "",
-            url: (entry.links?.[0].href ?? entry.id).replace(
-                "buttondown.email/denonews",
-                "deno.news",
-            ),
-        }),
-    }),
-    typescript: getFeedHandler("typescript"),
-    v8_blog: getFeedHandler("v8_blog"),
-    deploy_changelog: getFeedHandler("deploy_changelog"),
-    release: getReleaseHandler("release", "Deno"),
-    std_release: getReleaseHandler("std_release", "std"),
-    bun_blog: getFeedHandler("bun_blog"),
-    nodejs_blog: getFeedHandler("nodejs_blog", {
-        entryFilter: (entry) => {
-            // ID is supposed to be `/blog/{type}/actual-blog-id`
-            const parts = entry.id.split("/");
-            // Definitely shouldn't be included.
-            if (parts[1] !== "blog" || typeof parts[2] !== "string") {
-                return false;
-            }
-            // Everything except events!
-            switch (parts[2]) {
-                case "announcements":
-                case "release":
-                case "vulnerability":
-                    return true;
-                case "events":
-                    return false;
-                default:
-                    return false;
-            }
-        },
-    }),
+	blog: getFeedHandler("blog"),
+	news: getFeedHandler("news", {
+		entryProcessor: (entry) => ({
+			title: entry.title?.value ?? "",
+			url: (entry.links?.[0].href ?? entry.id).replace(
+				"buttondown.email/denonews",
+				"deno.news",
+			),
+		}),
+	}),
+	typescript: getFeedHandler("typescript"),
+	v8_blog: getFeedHandler("v8_blog"),
+	deploy_changelog: getFeedHandler("deploy_changelog"),
+	release: getReleaseHandler("release", "Deno"),
+	std_release: getReleaseHandler("std_release", "std"),
+	bun_blog: getFeedHandler("bun_blog"),
+	nodejs_blog: getFeedHandler("nodejs_blog", {
+		entryFilter: (entry) => {
+			// ID is supposed to be `/blog/{type}/actual-blog-id`
+			const parts = entry.id.split("/");
+			// Definitely shouldn't be included.
+			if (parts[1] !== "blog" || typeof parts[2] !== "string") {
+				return false;
+			}
+			// Everything except events!
+			switch (parts[2]) {
+				case "announcements":
+				case "release":
+				case "vulnerability":
+					return true;
+				case "events":
+					return false;
+				default:
+					return false;
+			}
+		},
+	}),
 };
 
 async function getLatestFeedEntries(page: Feed): Promise<FeedEntry[]> {
-    const lastChecked = await kv.get<string[]>(["denonews", page]);
-    const response = await fetch(SOURCES[page]);
-    const textFeed = await response.text();
-    const feed = await parseFeed(textFeed);
-    if (feed.entries.length === 0) return [];
-    if (lastChecked.value == null) {
-        // freshly added feed -> store the latest entry.
-        const entries = feed.entries
-            .filter((entry) => entry.id != null)
-            .slice(0, LAST_X_TO_STORE);
-        const ids = entries.map((entry) => entry.id);
-        await kv.set(["denonews", page], ids);
-        return [entries[0]]; // send latest entry -> everything works fine.
-    }
-    const entries: FeedEntry[] = [];
-    for (const entry of feed.entries) {
-        if (entry.id == null) continue; // this shouldn't be happening
-        if (lastChecked.value.includes(entry.id)) break;
-        entries.unshift(entry); // FIFO
-    }
-    if (entries.length > 0) {
-        const lastFew = feed.entries
-            .filter((entry) => entry.id != null)
-            .slice(0, LAST_X_TO_STORE)
-            .map((entry) => entry.id);
-        await kv.set(["denonews", page], lastFew);
-    }
-    return entries;
+	const lastChecked = await kv.get<string[]>(["denonews", page]);
+	const response = await fetch(SOURCES[page]);
+	const textFeed = await response.text();
+	const feed = await parseFeed(textFeed);
+	if (feed.entries.length === 0) return [];
+	if (lastChecked.value == null) {
+		// freshly added feed -> store the latest entry.
+		const entries = feed.entries
+			.filter((entry) => entry.id != null)
+			.slice(0, LAST_X_TO_STORE);
+		const ids = entries.map((entry) => entry.id);
+		await kv.set(["denonews", page], ids);
+		return [entries[0]]; // send latest entry -> everything works fine.
+	}
+	const entries: FeedEntry[] = [];
+	for (const entry of feed.entries) {
+		if (entry.id == null) continue; // this shouldn't be happening
+		if (lastChecked.value.includes(entry.id)) break;
+		entries.unshift(entry); // FIFO
+	}
+	if (entries.length > 0) {
+		const lastFew = feed.entries
+			.filter((entry) => entry.id != null)
+			.slice(0, LAST_X_TO_STORE)
+			.map((entry) => entry.id);
+		await kv.set(["denonews", page], lastFew);
+	}
+	return entries;
 }
 
 function getFeedHandler(
-    feed: Feed,
-    options?: Partial<FeedHandlerOptions>,
+	feed: Feed,
+	options?: Partial<FeedHandlerOptions>,
 ): NewsHandler {
-    const opts = {
-        entryFilter: DEFAULT_FEED_ENTRY_FILTER,
-        entryProcessor: DEFAULT_FEED_ENTRY_PROCESSOR,
-        ...options,
-    };
-    return async () => {
-        const entries = await getLatestFeedEntries(feed);
-        return entries.filter(opts.entryFilter).map((entry) => {
-            const { title, url } = opts.entryProcessor(entry);
-            return {
-                message: `<b>${esc(title)}</b>\n\n${esc(url)}`,
-                previewUrl: iv(url),
-            };
-        });
-    };
+	const opts = {
+		entryFilter: DEFAULT_FEED_ENTRY_FILTER,
+		entryProcessor: DEFAULT_FEED_ENTRY_PROCESSOR,
+		...options,
+	};
+	return async () => {
+		const entries = await getLatestFeedEntries(feed);
+		return entries.filter(opts.entryFilter).map((entry) => {
+			const { title, url } = opts.entryProcessor(entry);
+			return {
+				message: `<b>${esc(title)}</b>\n\n${esc(url)}`,
+				previewUrl: iv(url),
+			};
+		});
+	};
 }
 
 async function getLatestRelease(repo: Feed) {
-    const lastSent = await kv.get<number>(["denonews", repo]);
-    const url = `https://api.github.com/repos/${SOURCES[repo]}/releases/latest`;
-    const response = await fetch(url);
-    if (!response.ok) return;
-    const release = await response.json() as Release;
-    if (lastSent.value != null && release.id === lastSent.value) return;
-    await kv.set(["denonews", repo], release.id);
-    return release;
+	const lastSent = await kv.get<number>(["denonews", repo]);
+	const url = `https://api.github.com/repos/${SOURCES[repo]}/releases/latest`;
+	const response = await fetch(url);
+	if (!response.ok) return;
+	const release = (await response.json()) as Release;
+	if (lastSent.value != null && release.id === lastSent.value) return;
+	await kv.set(["denonews", repo], release.id);
+	return release;
 }
 
 function getReleaseHandler(repo: Feed, title: string): NewsHandler {
-    return async () => {
-        const release = await getLatestRelease(repo);
-        if (release == null) return [];
-        return [{
-            message: `<b>${title} ${esc(release.name)}</b>\n\n${
-                esc(release.html_url)
-            }`,
-        }];
-    };
+	return async () => {
+		const release = await getLatestRelease(repo);
+		if (release == null) return [];
+		return [
+			{
+				message: `<b>${title} ${esc(release.name)}</b>\n\n${esc(
+					release.html_url,
+				)}`,
+			},
+		];
+	};
 }
 
 Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
-    const feed = selectNewsHandler();
-    const messages = await newsHandlers[feed]();
-    for (const { message, previewUrl } of messages) {
-        const sent = LINK_PREVIEW_DISABLED.includes(feed)
-            ? await post(message, {
-                link_preview_options: { is_disabled: true },
-            })
-            : await post(
-                message,
-                previewUrl
-                    ? {
-                        link_preview_options: {
-                            url: previewUrl,
-                            prefer_small_media: true,
-                        },
-                    }
-                    : {},
-            );
-        if (feed !== "typescript") continue;
-        const lastPinned = await kv.get<number>(["denonews", "release_pin"]);
-        if (lastPinned.value != null) {
-            try { // Maybe the message was unpinned by administrators.
-                await bot.api.unpinChatMessage(CHANNEL, lastPinned.value);
-            } catch (error) {
-                console.error(error);
-            }
-        }
-        await bot.api.pinChatMessage(CHANNEL, sent.message_id, {
-            disable_notification: true,
-        });
-        await kv.set(["denonews", "release_pin"], sent.message_id);
-    }
-    console.log({ feed, sent: messages.length });
+	try {
+		const feed = selectNewsHandler();
+		const messages = await newsHandlers[feed]();
+		for (const { message, previewUrl } of messages) {
+			const sent = LINK_PREVIEW_DISABLED.includes(feed)
+				? await post(message, {
+						link_preview_options: { is_disabled: true },
+					})
+				: await post(
+						message,
+						previewUrl
+							? {
+									link_preview_options: {
+										url: previewUrl,
+										prefer_small_media: true,
+									},
+								}
+							: {},
+					);
+			if (feed !== "typescript") continue;
+			const lastPinned = await kv.get<number>([
+				"denonews",
+				"release_pin",
+			]);
+			if (lastPinned.value != null) {
+				try {
+					// Maybe the message was unpinned by administrators.
+					await bot.api.unpinChatMessage(CHANNEL, lastPinned.value);
+				} catch (error) {
+					console.error(error);
+				}
+			}
+			await bot.api.pinChatMessage(CHANNEL, sent.message_id, {
+				disable_notification: true,
+			});
+			await kv.set(["denonews", "release_pin"], sent.message_id);
+		}
+		console.log({ feed, sent: messages.length });
+	} catch (err) {
+		console.error(err);
+	}
 });
 
 function selectNewsHandler(): Feed {
-    return ROUTES[new Date().getMinutes() % ROUTES.length];
+	return ROUTES[new Date().getMinutes() % ROUTES.length];
 }
 
 function post(text: string, options?: SendMessageOptions) {
-    return bot.api.sendMessage(CHANNEL, text, {
-        parse_mode: "HTML",
-        ...options,
-    });
+	return bot.api.sendMessage(CHANNEL, text, {
+		parse_mode: "HTML",
+		...options,
+	});
 }
 
 function iv(url: string) {
-    const rhash = RHASHES[new URL(url).hostname];
-    if (rhash != null) return `https://t.me/iv?rhash=${rhash}&url=${url}`;
+	const rhash = RHASHES[new URL(url).hostname];
+	if (rhash != null) return `https://t.me/iv?rhash=${rhash}&url=${url}`;
 }
 
 function esc(text: string) {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
 }
 
 function env<T extends string>(...keys: T[]): { [key in T]: string } {
-    return keys.reduce(
-        (v, k) => ({ ...v, [k]: Deno.env.get(k) as string }),
-        {} as { [key in T]: string },
-    );
+	return keys.reduce(
+		(v, k) => ({ ...v, [k]: Deno.env.get(k) as string }),
+		{} as { [key in T]: string },
+	);
 }
