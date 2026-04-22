@@ -4,7 +4,7 @@ Script for posting Deno (https://deno.land) related updates such as release
 info, blog posts, and other news from various official sources in a Telegram
 channel. Currently posting at <https://t.me/deno_news>, join for updates.
 
-#### Sources (7)
+#### Sources (6)
 
 The bot currently fetches the posts from the following sources:
 
@@ -12,7 +12,6 @@ The bot currently fetches the posts from the following sources:
 - <https://github.com/denoland/deno_std/releases/latest>
 - <https://deno.com/blog>\*
 - <https://v8.dev/blog>\*
-- <https://deno.com/deploy/changelog>
 - <https://deno.news/archive>\*
 - <https://devblogs.microsoft.com/typescript>\*
 - <https://bun.sh/blog>\*

@@ -36,7 +36,6 @@ const SOURCES = {
 	news: "https://buttondown.email/denonews/rss",
 	typescript: "https://devblogs.microsoft.com/typescript/feed/",
 	v8_blog: "https://v8.dev/blog.atom",
-	deploy_changelog: "https://deno.com/deploy/feed",
 	release: "denoland/deno",
 	std_release: "denoland/deno_std",
 	bun_blog: "https://bun.sh/rss.xml",
@@ -79,7 +78,6 @@ const newsHandlers: Record<Feed, NewsHandler> = {
 	}),
 	typescript: getFeedHandler("typescript"),
 	v8_blog: getFeedHandler("v8_blog"),
-	deploy_changelog: getFeedHandler("deploy_changelog"),
 	release: getReleaseHandler("release", "Deno"),
 	std_release: getReleaseHandler("std_release", "std"),
 	bun_blog: getFeedHandler("bun_blog"),
@@ -185,6 +183,7 @@ function getReleaseHandler(repo: Feed, title: string): NewsHandler {
 
 Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
 	try {
+		console.log("fetching", feed);
 		const feed = selectNewsHandler();
 		const messages = await newsHandlers[feed]();
 		for (const { message, previewUrl } of messages) {
