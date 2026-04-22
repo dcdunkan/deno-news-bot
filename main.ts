@@ -183,8 +183,8 @@ function getReleaseHandler(repo: Feed, title: string): NewsHandler {
 
 Deno.cron("Fetch feeds and post news", { minute: { every: 1 } }, async () => {
 	try {
-		console.log("fetching", feed);
 		const feed = selectNewsHandler();
+		console.log("fetching", feed);
 		const messages = await newsHandlers[feed]();
 		for (const { message, previewUrl } of messages) {
 			const sent = LINK_PREVIEW_DISABLED.includes(feed)
